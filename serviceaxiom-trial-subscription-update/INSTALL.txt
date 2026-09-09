@@ -1,0 +1,43 @@
+ServiceAxiom 14-day trial and $29.99 monthly subscription
+
+Run from C:\Users\weing\OneDrive\Desktop\serviceaxiom-v2
+
+1. Copy and preview the migration
+
+$source = ".\serviceaxiom-trial-subscription-update"
+$migration = "20260909040000_add_platform_subscriptions.sql"
+
+Copy-Item -LiteralPath "$source\supabase\migrations\$migration" -Destination ".\supabase\migrations\$migration" -Force
+Test-Path -LiteralPath ".\supabase\migrations\$migration"
+npx.cmd supabase db push --dry-run
+
+Stop after the dry run. It must list only:
+20260909040000_add_platform_subscriptions.sql
+
+2. After approval, apply it
+
+npx.cmd supabase db push
+
+3. Regenerate types
+
+$typeOutput = npx.cmd supabase gen types typescript --linked
+$utf8 = New-Object System.Text.UTF8Encoding($false)
+$typeFile = Join-Path (Get-Location).Path "lib\database.types.ts"
+[System.IO.File]::WriteAllText($typeFile, ($typeOutput -join "`n"), $utf8)
+
+Select-String -Path ".\lib\database.types.ts" -Pattern "subscription_status|trial_ends_at|stripe_subscription_id"
+
+4. Copy app files
+
+Copy-Item -Path "$source\app\*" -Destination ".\app" -Recurse -Force
+
+5. Remove the extracted update folder before verification
+
+Remove-Item -LiteralPath $source -Recurse -Force
+
+6. Verify
+
+npm.cmd run lint
+npm.cmd run build
+
+Routes must include /billing and /api/stripe/subscription-webhook.

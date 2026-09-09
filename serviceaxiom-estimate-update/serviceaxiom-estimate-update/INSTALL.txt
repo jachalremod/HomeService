@@ -1,0 +1,26 @@
+ServiceAxiom Joist-style estimate builder
+
+Updated files:
+1. app\(protected)\estimates\actions.ts
+2. app\(protected)\estimates\new\estimate-form.tsx
+3. app\(protected)\estimates\new\page.tsx
+4. app\(protected)\estimates\[id]\edit\page.tsx
+
+PowerShell installation
+
+Run these commands from C:\Users\weing\OneDrive\Desktop\serviceaxiom-v2 after
+extracting this ZIP into a folder named serviceaxiom-estimate-update:
+
+$source = ".\serviceaxiom-estimate-update\app\(protected)\estimates"
+$target = ".\app\(protected)\estimates"
+
+Copy-Item -LiteralPath "$source\actions.ts" -Destination "$target\actions.ts" -Force
+Copy-Item -LiteralPath "$source\new\estimate-form.tsx" -Destination "$target\new\estimate-form.tsx" -Force
+Copy-Item -LiteralPath "$source\new\page.tsx" -Destination "$target\new\page.tsx" -Force
+Copy-Item -LiteralPath "$source\[id]\edit\page.tsx" -Destination "$target\[id]\edit\page.tsx" -Force
+
+npm.cmd run lint
+npm.cmd run build
+
+The update uses the existing show_quantity and show_rate columns. No new
+Supabase migration is required.

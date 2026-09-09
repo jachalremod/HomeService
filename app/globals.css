@@ -1,0 +1,250 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  --background: #020617;
+  --foreground: #e2e8f0;
+  color-scheme: dark;
+}
+
+html,
+body,
+body * {
+  transition-property: background-color, border-color, color;
+  transition-duration: 150ms;
+}
+
+html.dark .bg-white {
+  background-color: #0f172a;
+}
+
+html.dark .bg-slate-50,
+html.dark .bg-slate-100 {
+  background-color: #1e293b;
+}
+
+html.dark .bg-slate-950 {
+  background-color: #020617;
+}
+
+html.dark .text-slate-950,
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-slate-700 {
+  color: #f1f5f9;
+}
+
+html.dark .text-slate-600,
+html.dark .text-slate-500,
+html.dark .text-slate-400,
+html.dark .text-slate-300 {
+  color: #cbd5e1;
+}
+
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-slate-300 {
+  border-color: #334155;
+}
+
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: #0f172a;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #94a3b8;
+}
+
+html.dark .shadow-sm,
+html.dark .shadow-md,
+html.dark .shadow-lg,
+html.dark .shadow-xl {
+  --tw-shadow-color: rgb(0 0 0 / 0.35);
+}
+
+html.dark .bg-blue-50 {
+  background-color: #172554;
+}
+
+html.dark .bg-emerald-50 {
+  background-color: #022c22;
+}
+
+html.dark .bg-red-50 {
+  background-color: #450a0a;
+}
+
+html.dark .bg-amber-50 {
+  background-color: #451a03;
+}
+
+html.dark .text-blue-950,
+html.dark .text-blue-900,
+html.dark .text-blue-700 {
+  color: #93c5fd;
+}
+
+html.dark .text-emerald-950,
+html.dark .text-emerald-900,
+html.dark .text-emerald-800,
+html.dark .text-emerald-700 {
+  color: #6ee7b7;
+}
+
+html.dark .text-red-950,
+html.dark .text-red-900,
+html.dark .text-red-700,
+html.dark .text-red-600 {
+  color: #fca5a5;
+}
+
+html.dark .text-amber-950,
+html.dark .text-amber-900,
+html.dark .text-amber-800,
+html.dark .text-amber-700 {
+  color: #fcd34d;
+}
+
+html.dark .border-blue-200,
+html.dark .border-emerald-200,
+html.dark .border-red-200,
+html.dark .border-amber-200 {
+  border-color: #475569;
+}
+
+html.dark .hover\:bg-slate-50:hover,
+html.dark .hover\:bg-slate-100:hover {
+  background-color: #334155;
+}
+
+html.dark .hover\:text-slate-950:hover,
+html.dark .hover\:text-white:hover {
+  color: #ffffff;
+}
+
+@media print {
+  @page {
+    margin: 0.5in;
+  }
+
+  body {
+    background: white !important;
+    color: #0f172a !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
+@media print {
+  .estimate-print-document {
+    background: white !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+  }
+
+  .estimate-print-document * {
+    background-color: transparent !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: economy !important;
+    print-color-adjust: economy !important;
+  }
+
+  .estimate-print-document img {
+    background: white !important;
+  }
+}
+
+/* Estimate letter-size page fitting */
+@page {
+  size: Letter portrait;
+  margin: 0.5in;
+}
+
+@media print {
+  html,
+  body {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  body:has(.estimate-print-document) main {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .estimate-print-document {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }
+
+  .estimate-print-document *,
+  .estimate-print-document *::before,
+  .estimate-print-document *::after {
+    min-width: 0 !important;
+    max-width: 100%;
+    box-sizing: border-box !important;
+  }
+
+  .estimate-print-document table {
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+  }
+
+  .estimate-print-document th,
+  .estimate-print-document td,
+  .estimate-print-document p {
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    white-space: normal;
+  }
+
+  .estimate-print-document img {
+    max-width: 100% !important;
+    object-fit: contain !important;
+  }
+
+  .estimate-print-document tr,
+  .estimate-print-document .print\:break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
