@@ -125,3 +125,79 @@ export async function createWorkOrder(formData: FormData) {
     `/estimates/${estimate.id}?message=Work+order+${workOrder.work_order_number}+created`,
   );
 }
+export async function updateWorkOrderStatus(formData: FormData) {
+  const result = z
+    .object({
+      workOrderId: z.uuid(),
+      status: z.enum([
+        "draft",
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+      ]),
+    })
+    .safeParse({
+      workOrderId: formData.get("workOrderId"),
+      status: formData.get("status"),
+    });
+
+  if (!result.success) {
+    redirect("/work-orders?message=Invalid+work+order");
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("work_orders")
+    .update({ status: result.data.status })
+    .eq("id", result.data.workOrderId);
+
+  if (error) {
+    redirect(
+      `/work-orders/${result.data.workOrderId}?message=${encodeURIComponent(error.message)}`,
+    );
+  }
+
+  revalidatePath(`/work-orders/${result.data.workOrderId}`);
+  revalidatePath("/work-orders");
+  redirect(`/work-orders/${result.data.workOrderId}?message=Status+updated`);
+}
+
+export async function updateWorkOrderSchedule(formData: FormData) {
+  const workOrderId = z.uuid().safeParse(formData.get("workOrderId"));
+
+  if (!workOrderId.success) {
+    redirect("/work-orders?message=Invalid+work+order");
+  }
+
+  const startDate = String(formData.get("scheduledStart") ?? "");
+  const endDate = String(formData.get("scheduledEnd") ?? "");
+
+  if (startDate && endDate && endDate < startDate) {
+    redirect(
+      `/work-orders/${workOrderId.data}?message=End+date+cannot+be+before+start+date`,
+    );
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("work_orders")
+    .update({
+      scheduled_start: startDate || null,
+      scheduled_end: endDate || null,
+      status: startDate ? "scheduled" : "draft",
+    })
+    .eq("id", workOrderId.data);
+
+  if (error) {
+    redirect(
+      `/work-orders/${workOrderId.data}?message=${encodeURIComponent(error.message)}`,
+    );
+  }
+
+  revalidatePath(`/work-orders/${workOrderId.data}`);
+  revalidatePath("/work-orders");
+  redirect(`/work-orders/${workOrderId.data}?message=Schedule+updated`);
+}

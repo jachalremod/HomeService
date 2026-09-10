@@ -5,14 +5,14 @@ import {
   Building2,
   Calendar,
   CircleDollarSign,
+  ClipboardList,
   FileText,
   LayoutDashboard,
   LogOut,
   Settings,
   Users,
   Wrench,
-} from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+} from "lucide-react";import { createClient } from "@/lib/supabase/server";
 import { logout } from "./dashboard/actions";
 import ThemeToggle from "@/app/theme-toggle";
 
@@ -22,6 +22,7 @@ const navigation = [
   { label: "Estimates", href: "/estimates", icon: FileText },
   { label: "Invoices", href: "/invoices", icon: CircleDollarSign },
   { label: "Jobs", href: "/jobs", icon: Wrench },
+  { label: "Work Orders", href: "/work-orders", icon: ClipboardList },
   { label: "Schedule", href: "/schedule", icon: Calendar },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
