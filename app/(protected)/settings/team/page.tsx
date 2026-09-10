@@ -1,7 +1,12 @@
 ﻿import Link from "next/link";
 import { ArrowLeft, Mail, Users, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { createInvitation, revokeInvitation } from "./actions";
+import {
+  createInvitation,
+  removeMember,
+  revokeInvitation,
+  updateMemberRole,
+} from "./actions";
 
 const ROLE_STYLES: Record<string, string> = {
   owner: "bg-blue-100 text-blue-800",
@@ -17,6 +22,10 @@ type TeamPageProps = {
 export default async function TeamPage({ searchParams }: TeamPageProps) {
   const { message, token } = await searchParams;
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { data: organizationId } = await supabase.rpc(
     "current_organization_id",
@@ -81,21 +90,77 @@ export default async function TeamPage({ searchParams }: TeamPageProps) {
           {error ? (
             <div className="p-6 text-red-900">{error.message}</div>
           ) : (
-            (members ?? []).map((member) => (
-              <div
-                key={member.user_id}
-                className="flex items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 last:border-b-0"
-              >
-                <p className="font-semibold text-slate-950">{member.email}</p>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${
-                    ROLE_STYLES[member.role] ?? "bg-slate-100 text-slate-700"
-                  }`}
+            (members ?? []).map((member) => {
+              const isSelf = member.user_id === user?.id;
+              const isOwner = member.role === "owner";
+
+              return (
+                <div
+                  key={member.user_id}
+                  className="flex items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 last:border-b-0"
                 >
-                  {member.role}
-                </span>
-              </div>
-            ))
+                  <p className="font-semibold text-slate-950">
+                    {member.email}
+                  </p>
+
+                  {isOwner || isSelf ? (
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${
+                        ROLE_STYLES[member.role] ??
+                        "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      {member.role}
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <form action={updateMemberRole}>
+                        <input
+                          type="hidden"
+                          name="userId"
+                          value={member.user_id}
+                        />
+                        <input
+                          type="hidden"
+                          name="organizationId"
+                          value={organizationId}
+                        />
+                        <select
+                          name="role"
+                          defaultValue={member.role}
+                          onChange={(e) => e.currentTarget.form?.requestSubmit()}
+                          className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-bold capitalize text-slate-700"
+                        >
+                          <option value="admin">Admin</option>
+                          <option value="office">Office</option>
+                          <option value="field">Field</option>
+                        </select>
+                      </form>
+
+                      <form action={removeMember}>
+                        <input
+                          type="hidden"
+                          name="userId"
+                          value={member.user_id}
+                        />
+                        <input
+                          type="hidden"
+                          name="organizationId"
+                          value={organizationId}
+                        />
+                                                <button
+                          type="submit"
+                          aria-label="Remove member"
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-700"
+                        >
+                          <X size={16} />
+                        </button>
+                      </form>
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
 
           {pendingInvitations?.length ? (

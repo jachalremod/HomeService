@@ -84,3 +84,66 @@ export async function revokeInvitation(formData: FormData) {
   revalidatePath("/settings/team");
   redirect("/settings/team?message=Invitation+revoked");
 }
+export async function updateMemberRole(formData: FormData) {
+  const result = z
+    .object({
+      userId: z.uuid(),
+      organizationId: z.uuid(),
+      role: z.enum(["admin", "office", "field"]),
+    })
+    .safeParse({
+      userId: formData.get("userId"),
+      organizationId: formData.get("organizationId"),
+      role: formData.get("role"),
+    });
+
+  if (!result.success) {
+    redirect("/settings/team?message=Invalid+role+update");
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("organization_members")
+    .update({ role: result.data.role })
+    .eq("organization_id", result.data.organizationId)
+    .eq("user_id", result.data.userId);
+
+  if (error) {
+    redirect(`/settings/team?message=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/settings/team");
+  redirect("/settings/team?message=Role+updated");
+}
+
+export async function removeMember(formData: FormData) {
+  const result = z
+    .object({
+      userId: z.uuid(),
+      organizationId: z.uuid(),
+    })
+    .safeParse({
+      userId: formData.get("userId"),
+      organizationId: formData.get("organizationId"),
+    });
+
+  if (!result.success) {
+    redirect("/settings/team?message=Invalid+member");
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("organization_members")
+    .delete()
+    .eq("organization_id", result.data.organizationId)
+    .eq("user_id", result.data.userId);
+
+  if (error) {
+    redirect(`/settings/team?message=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/settings/team");
+  redirect("/settings/team?message=Member+removed");
+}
