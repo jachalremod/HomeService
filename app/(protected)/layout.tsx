@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   Building2,
+  Calendar,
   CircleDollarSign,
   FileText,
   LayoutDashboard,
@@ -21,9 +22,9 @@ const navigation = [
   { label: "Estimates", href: "/estimates", icon: FileText },
   { label: "Invoices", href: "/invoices", icon: CircleDollarSign },
   { label: "Jobs", href: "/jobs", icon: Wrench },
+  { label: "Schedule", href: "/schedule", icon: Calendar },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
-
 export default async function ProtectedLayout({
   children,
 }: Readonly<{
