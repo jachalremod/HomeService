@@ -20,12 +20,13 @@ function money(value: number) {
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const [
+    const [
     customersResult,
     estimatesResult,
     invoicesResult,
     jobsResult,
     recentEstimatesResult,
+    needsSchedulingResult,
   ] = await Promise.all([
     supabase.from("customers").select("id", { count: "exact", head: true }),
     supabase.from("estimates").select("id", { count: "exact", head: true }),
@@ -38,6 +39,12 @@ export default async function DashboardPage() {
       .select(
         "id, estimate_number, title, status, total, customers(first_name, last_name)",
       )
+      .order("created_at", { ascending: false })
+      .limit(5),
+    supabase
+      .from("jobs")
+      .select("id, job_number, title, customers(first_name, last_name)")
+      .is("scheduled_start", null)
       .order("created_at", { ascending: false })
       .limit(5),
   ]);
@@ -200,10 +207,52 @@ export default async function DashboardPage() {
                 </Link>
               ))}
             </div>
-          )}
+                    )}
         </div>
 
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-5">
+            <h2 className="text-lg font-bold text-slate-950">
+              Needs scheduling
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Paid jobs waiting to go on the calendar.
+            </p>
+          </div>
 
+          {!needsSchedulingResult.data?.length ? (
+            <div className="rounded-xl bg-slate-50 p-8 text-center text-sm text-slate-600">
+              Nothing waiting — you&apos;re all caught up.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {needsSchedulingResult.data.map((job) => (
+                <Link
+                  key={job.id}
+                  href="/jobs"
+                  className="block rounded-xl border border-slate-200 p-3 hover:bg-slate-50"
+                >
+                  <p className="text-xs font-bold text-blue-700">
+                    {job.job_number}
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-950">
+                    {job.title}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {job.customers?.first_name} {job.customers?.last_name}
+                  </p>
+                </Link>
+              ))}
+
+              <Link
+                href="/jobs"
+                className="block pt-1 text-center text-sm font-semibold text-blue-700"
+              >
+                View all in Jobs
+              </Link>
+            </div>
+          )}
+        </div>
       </section>
     </>
   );
