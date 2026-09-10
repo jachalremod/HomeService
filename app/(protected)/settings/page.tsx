@@ -5,8 +5,8 @@ import {
   CircleDollarSign,
   FileText,
   Settings,
+  Users,
 } from "lucide-react";
-
 const settingSections = [
   {
     title: "Company settings",
@@ -14,6 +14,14 @@ const settingSections = [
       "Company name, logo, contact information, address, and contractor license.",
     href: "/settings/company",
     icon: Building2,
+    available: true,
+  },
+  {
+    title: "Team members",
+    description:
+      "People with access to your workspace and their roles.",
+    href: "/settings/team",
+    icon: Users,
     available: true,
   },
   {
@@ -33,7 +41,6 @@ const settingSections = [
     available: false,
   },
 ];
-
 export default function SettingsPage() {
   return (
     <>
