@@ -5,6 +5,11 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
+const paymentScheduleItemSchema = z.object({
+  title: z.string().trim().min(1),
+  percentage: z.coerce.number().positive().max(100),
+});
+
 const estimateSchema = z.object({
   customerId: z.uuid(),
   title: z.string().trim().min(1),
@@ -15,7 +20,6 @@ const estimateSchema = z.object({
   showQuantity: z.boolean(),
   showRate: z.boolean(),
 });
-
 const itemSchema = z.object({
   title: z.string().trim().min(1),
   description: z.string().trim().min(1),
@@ -35,20 +39,34 @@ export async function createEstimate(formData: FormData) {
     showRate: formData.get("showRate") === "on",
   });
 
-  let rawItems: unknown;
+    let rawItems: unknown;
+  let rawSchedule: unknown;
 
   try {
     rawItems = JSON.parse(String(formData.get("items") ?? "[]"));
+    rawSchedule = JSON.parse(String(formData.get("paymentSchedule") ?? "[]"));
   } catch {
     redirect("/estimates/new?message=The+estimate+items+are+invalid");
   }
 
   const itemsResult = z.array(itemSchema).min(1).safeParse(rawItems);
+  const scheduleResult = z
+    .array(paymentScheduleItemSchema)
+    .min(1)
+    .safeParse(rawSchedule);
 
-  if (!estimateResult.success || !itemsResult.success) {
+  if (!estimateResult.success || !itemsResult.success || !scheduleResult.success) {
     redirect("/estimates/new?message=Complete+all+required+estimate+fields");
   }
 
+  const schedulePercentageTotal = scheduleResult.data.reduce(
+    (sum, s) => sum + s.percentage,
+    0,
+  );
+
+  if (Math.abs(schedulePercentageTotal - 100) > 0.001) {
+    redirect("/estimates/new?message=Payment+schedule+must+equal+100+percent");
+  }
   const supabase = await createClient();
   const {
     data: { user },
@@ -108,9 +126,10 @@ export async function createEstimate(formData: FormData) {
       total,
       notes: estimateResult.data.notes || null,
       terms: estimateResult.data.terms || null,
-      expires_at: estimateResult.data.expiresAt || null,
+            expires_at: estimateResult.data.expiresAt || null,
       show_quantity: estimateResult.data.showQuantity,
       show_rate: estimateResult.data.showRate,
+      payment_schedule: scheduleResult.data,
       status: "draft",
     })
     .select("id")
@@ -270,11 +289,15 @@ export async function updateEstimate(
     showRate: formData.get("showRate") === "on",
   });
 
-  let rawItems: unknown;
+    let rawItems: unknown;
+  let rawSchedule: unknown;
 
   try {
     rawItems = JSON.parse(
       String(formData.get("items") ?? "[]"),
+    );
+    rawSchedule = JSON.parse(
+      String(formData.get("paymentSchedule") ?? "[]"),
     );
   } catch {
     redirect(
@@ -286,14 +309,30 @@ export async function updateEstimate(
     .array(itemSchema)
     .min(1)
     .safeParse(rawItems);
+  const scheduleResult = z
+    .array(paymentScheduleItemSchema)
+    .min(1)
+    .safeParse(rawSchedule);
 
   if (
     !idResult.success ||
     !estimateResult.success ||
-    !itemsResult.success
+    !itemsResult.success ||
+    !scheduleResult.success
   ) {
     redirect(
       `/estimates/${estimateId}/edit?message=Complete+all+required+estimate+fields`,
+    );
+  }
+
+  const schedulePercentageTotal = scheduleResult.data.reduce(
+    (sum, s) => sum + s.percentage,
+    0,
+  );
+
+  if (Math.abs(schedulePercentageTotal - 100) > 0.001) {
+    redirect(
+      `/estimates/${estimateId}/edit?message=Payment+schedule+must+equal+100+percent`,
     );
   }
 
@@ -349,6 +388,7 @@ export async function updateEstimate(
         terms: estimateResult.data.terms || null,
         show_quantity: estimateResult.data.showQuantity,
         show_rate: estimateResult.data.showRate,
+        payment_schedule: scheduleResult.data,
         status: "draft",
       })
       .eq("id", idResult.data)

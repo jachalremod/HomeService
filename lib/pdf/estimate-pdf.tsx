@@ -35,6 +35,7 @@ export type EstimatePdfData = {
     terms: string;
     showQuantity: boolean;
     showRate: boolean;
+    paymentSchedule: Array<{ title: string; percentage: number }>;
   };
   items: Array<{
     id: string;
@@ -464,11 +465,23 @@ export default function EstimatePdfDocument({
             <Text>{money(data.estimate.taxAmount)}</Text>
           </View>
 
-          <View style={styles.grandTotal}>
+                    <View style={styles.grandTotal}>
             <Text>Total</Text>
             <Text>{money(data.estimate.total)}</Text>
           </View>
         </View>
+
+        {data.estimate.paymentSchedule && data.estimate.paymentSchedule.length > 0 ? (
+          <View style={styles.notesSection}>
+            <Text style={styles.sectionLabel}>Payment schedule</Text>
+            {data.estimate.paymentSchedule.map((schedule, index) => (
+              <View key={index} style={styles.totalRow}>
+                <Text>{schedule.title} ({schedule.percentage}%)</Text>
+                <Text>{money(data.estimate.total * (schedule.percentage / 100))}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         {data.estimate.notes ? (
           <View style={styles.notesSection}>

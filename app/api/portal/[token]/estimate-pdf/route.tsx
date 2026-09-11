@@ -110,6 +110,7 @@ export async function GET(
         "",
       showQuantity: estimate.show_quantity,
       showRate: estimate.show_rate,
+      paymentSchedule: estimate.payment_schedule ?? [],
     },
     items: items.map((item) => ({
       id: item.id,

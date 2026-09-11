@@ -8,7 +8,8 @@ import { createEstimate, updateEstimate } from "../actions";
 type CustomerOption = { id: string; first_name: string; last_name: string; email: string | null; project_address: string | null; city: string | null; state: string | null; postal_code: string | null };
 type BusinessProfile = { company_name: string; phone: string | null; email: string | null; license_number: string | null; logo_url: string | null; default_terms: string | null; estimate_contract_template?: string | null };
 type EstimateItem = { id: string; title: string; description: string; quantity: number; unitPrice: number };
-type InitialEstimate = { id: string; estimateNumber: string; customerId: string; title: string; expiresAt: string; taxRate: number; notes: string; terms: string; showQuantity?: boolean; showRate?: boolean; items: EstimateItem[] };
+type PaymentScheduleItem = { id: string; title: string; percentage: number | "" };
+type InitialEstimate = { id: string; estimateNumber: string; customerId: string; title: string; expiresAt: string; taxRate: number; notes: string; terms: string; showQuantity?: boolean; showRate?: boolean; items: EstimateItem[]; paymentSchedule?: PaymentScheduleItem[] };
 type EstimateFormProps = { customers: CustomerOption[]; business: BusinessProfile | null; initialEstimate?: InitialEstimate };
 
 function money(value: number) {
@@ -35,6 +36,12 @@ export default function EstimateForm({ customers, business, initialEstimate }: E
   const [showRate, setShowRate] = useState(initialEstimate?.showRate ?? false);
   const [expandedItemId, setExpandedItemId] = useState<string | null>(initialEstimate?.items?.[0]?.id ?? "initial-item");
   const [items, setItems] = useState<EstimateItem[]>(initialEstimate?.items?.length ? initialEstimate.items : [{ id: "initial-item", title: "", description: "", quantity: 1, unitPrice: 0 }]);
+  const [scheduleExpanded, setScheduleExpanded] = useState(false);
+  const [paymentSchedule, setPaymentSchedule] = useState<PaymentScheduleItem[]>(
+    initialEstimate?.paymentSchedule?.length
+      ? initialEstimate.paymentSchedule
+      : [{ id: "payment-1", title: "1st Payment", percentage: "" }],
+  );
 
   const selectedCustomer = customers.find((customer) => customer.id === customerId);
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0), [items]);
@@ -42,6 +49,7 @@ export default function EstimateForm({ customers, business, initialEstimate }: E
   const total = subtotal + taxAmount;
   const formAction = initialEstimate ? updateEstimate.bind(null, initialEstimate.id) : createEstimate;
   const cancelHref = initialEstimate ? `/estimates/${initialEstimate.id}` : "/estimates";
+  const scheduleRemaining = 100 - paymentSchedule.reduce((sum, s) => sum + Number(s.percentage || 0), 0);
 
   function updateItem(id: string, field: "title" | "description" | "quantity" | "unitPrice", value: string) {
     setItems((current) => current.map((item) => item.id === id ? { ...item, [field]: field === "title" || field === "description" ? value : Number(value) } : item));
@@ -59,11 +67,26 @@ export default function EstimateForm({ customers, business, initialEstimate }: E
     setExpandedItemId((current) => current === id ? null : current);
   }
 
+  function updateSchedule(id: string, field: "title" | "percentage", value: string) {
+    setPaymentSchedule((current) =>
+      current.map((s) => s.id === id ? { ...s, [field]: field === "percentage" ? (value === "" ? "" : Number(value)) : value } : s),
+    );
+  }
+
+  function addSchedule() {
+    setPaymentSchedule((current) => [...current, { id: `schedule-${Date.now()}`, title: `${current.length + 1}${["st", "nd", "rd"][current.length] ?? "th"} Payment`, percentage: "" }]);
+  }
+
+  function removeSchedule(id: string) {
+    setPaymentSchedule((current) => current.length === 1 ? current : current.filter((s) => s.id !== id));
+  }
+
   const inputClass = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100";
 
   return (
     <form action={formAction} className="-mx-4 sm:-mx-6 lg:-mx-8">
       <input type="hidden" name="items" value={JSON.stringify(items.map(({ title, description, quantity, unitPrice }) => ({ title, description, quantity, unitPrice })))} />
+      <input type="hidden" name="paymentSchedule" value={JSON.stringify(paymentSchedule.map(({ title, percentage }) => ({ title, percentage: Number(percentage) || 0 })))} />
 
       <header className="sticky top-0 z-30 flex flex-col gap-4 border-b border-slate-200 bg-white/95 px-5 py-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between lg:px-8">
         <div>
@@ -160,10 +183,61 @@ export default function EstimateForm({ customers, business, initialEstimate }: E
             <dl className="space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-4"><dt className="font-semibold text-slate-600">Subtotal</dt><dd className="font-bold text-slate-950">{money(subtotal)}</dd></div>
               <div className="flex items-center justify-between gap-5 border-b border-slate-100 pb-4"><dt><label htmlFor="taxRate" className="font-semibold text-slate-600">Tax</label></dt><dd className="flex items-center gap-3"><div className="relative w-24"><input id="taxRate" name="taxRate" type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(Number(event.target.value))} className={`${inputClass} pr-7 text-right`} /><span className="pointer-events-none absolute right-3 top-2.5 text-slate-400">%</span></div><span className="w-24 text-right font-semibold text-slate-700">{money(taxAmount)}</span></dd></div>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4"><dt className="font-semibold text-slate-600">Payment Schedule</dt><dd><button type="button" onClick={() => setScheduleExpanded(true)} className="font-semibold text-emerald-700 hover:underline">Add</button></dd></div>
               <div className="flex items-center justify-between pt-1 text-xl"><dt className="font-bold text-slate-950">Total (USD)</dt><dd className="font-bold text-slate-950">{money(total)}</dd></div>
             </dl>
           </aside>
         </div>
+
+        {scheduleExpanded ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
+              <div className="border-b border-slate-200 px-6 py-4">
+                <h2 className="text-lg font-bold text-slate-950">Payment Schedule</h2>
+              </div>
+
+              <div className="max-h-[60vh] overflow-y-auto px-6 py-5">
+                <div className="space-y-4">
+                  {paymentSchedule.map((schedule) => (
+                    <div key={schedule.id} className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <label className="mb-1 block text-xs font-semibold text-slate-500">Payment Name</label>
+                        <input value={schedule.title} onChange={(e) => updateSchedule(schedule.id, "title", e.target.value)} className={inputClass} />
+                      </div>
+                      <div className="w-32">
+                        <label className="mb-1 block text-xs font-semibold text-slate-500">Payment Amount %</label>
+                        <input type="number" min="0" max="100" step="0.01" value={schedule.percentage} onChange={(e) => updateSchedule(schedule.id, "percentage", e.target.value)} className={`${inputClass} text-right`} />
+                      </div>
+                      <button type="button" onClick={() => removeSchedule(schedule.id)} disabled={paymentSchedule.length === 1} aria-label="Remove payment" className="mt-6 flex size-9 shrink-0 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 disabled:opacity-30">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <button type="button" onClick={addSchedule} className="mt-5 flex items-center gap-2 font-semibold text-emerald-700 hover:underline">
+                  <Plus size={18} /> Add Payment
+                </button>
+
+                <p className={`mt-4 font-semibold ${Math.abs(scheduleRemaining) < 0.001 ? "text-emerald-700" : "text-slate-700"}`}>
+                  {scheduleRemaining.toFixed(2)}% Remaining
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-4 border-t border-slate-200 px-6 py-4">
+                <button type="button" onClick={() => setScheduleExpanded(false)} className="font-semibold text-slate-600 hover:underline">Cancel</button>
+                <button
+                  type="button"
+                  onClick={() => setScheduleExpanded(false)}
+                  disabled={Math.abs(scheduleRemaining) > 0.001}
+                  className="font-semibold text-emerald-700 hover:underline disabled:opacity-40"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <div className="flex justify-end gap-3 pb-8"><Link href={cancelHref} className="rounded-full bg-slate-100 px-8 py-3 font-semibold text-slate-700 hover:bg-slate-200">Cancel</Link><button type="submit" className="flex items-center gap-2 rounded-full bg-emerald-600 px-9 py-3 font-semibold text-white hover:bg-emerald-700"><Save size={18} /> Save estimate</button></div>
       </div>
