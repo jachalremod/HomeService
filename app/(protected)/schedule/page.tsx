@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { rescheduleFromCalendar } from "../jobs/[id]/actions";
 import { JobCalendar } from "./job-calendar";
 
 export default async function SchedulePage() {
@@ -25,7 +26,7 @@ export default async function SchedulePage() {
           {error.message}
         </div>
       ) : (
-        <JobCalendar jobs={jobs ?? []} />
+        <JobCalendar jobs={jobs ?? []} rescheduleAction={rescheduleFromCalendar} />
       )}
     </>
   );

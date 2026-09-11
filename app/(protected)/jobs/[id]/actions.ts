@@ -97,3 +97,36 @@ export async function updateJobStatus(formData: FormData) {
   revalidatePath("/jobs");
   redirect(`/jobs/${result.data.jobId}?message=Job+status+updated`);
 }
+export async function rescheduleFromCalendar(formData: FormData) {
+  const jobId = jobIdSchema.safeParse(formData.get("jobId"));
+
+  if (!jobId.success) {
+    redirect("/schedule?message=Invalid+job");
+  }
+
+  const startDate = String(formData.get("scheduledStart") ?? "");
+  const endDate = String(formData.get("scheduledEnd") ?? "");
+
+  if (startDate && endDate && endDate < startDate) {
+    redirect("/schedule?message=End+date+cannot+be+before+start+date");
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("jobs")
+    .update({
+      scheduled_start: startDate || null,
+      scheduled_end: endDate || null,
+    })
+    .eq("id", jobId.data);
+
+  if (error) {
+    redirect(`/schedule?message=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/jobs/${jobId.data}`);
+  revalidatePath("/jobs");
+  revalidatePath("/schedule");
+  redirect("/schedule?message=Schedule+updated");
+}
