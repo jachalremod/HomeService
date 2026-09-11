@@ -1,5 +1,5 @@
 ﻿import { createClient } from "@/lib/supabase/server";
-import { updateJobSchedule } from "./[id]/actions";
+import { rescheduleFromCalendar } from "./[id]/actions";
 import { JobsTabs } from "./jobs-tabs";
 
 type JobsPageProps = {
@@ -12,10 +12,10 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
   const { message } = await searchParams;
   const supabase = await createClient();
 
-  const { data: jobs, error } = await supabase
+    const { data: jobs, error } = await supabase
     .from("jobs")
     .select(
-      "id, job_number, title, status, scheduled_start, scheduled_end, customers(first_name, last_name, project_address, city, state)",
+      "id, job_number, title, status, scheduled_start, scheduled_end, customers(first_name, last_name, project_address, city, state), invoices(payment_schedules(status))",
     )
     .order("created_at", { ascending: false });
 
@@ -48,12 +48,12 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
           {error.message}
         </div>
       ) : (
-        <JobsTabs
+               <JobsTabs
           newJobs={newJobs}
           scheduledJobs={scheduledJobs}
           inProgressJobs={inProgressJobs}
           completedJobs={completedJobs}
-          scheduleAction={updateJobSchedule}
+          scheduleAction={rescheduleFromCalendar}
         />
       )}
     </>

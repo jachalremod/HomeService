@@ -1,5 +1,6 @@
 ﻿"use server";
 
+import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -144,7 +145,7 @@ export async function createInvoice(formData: FormData) {
     };
   });
 
-  const { error: scheduleError } = await supabase
+    const { error: scheduleError } = await supabase
     .from("payment_schedules")
     .insert(scheduleRows);
 
@@ -156,7 +157,20 @@ export async function createInvoice(formData: FormData) {
     );
   }
 
-  redirect("/invoices?message=Invoice+and+payment+schedule+created");
+  const jobNumber = `JOB-${randomUUID().slice(0, 8).toUpperCase()}`;
+
+  await supabase.from("jobs").insert({
+    user_id: user.id,
+    customer_id: estimate.customer_id,
+    estimate_id: estimate.id,
+    invoice_id: invoice.id,
+    job_number: jobNumber,
+    title: estimate.title,
+    description: estimate.description,
+    status: "scheduled",
+  });
+
+  redirect("/invoices?message=Invoice+and+job+created");
 }
 
 

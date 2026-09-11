@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
-  createJob,
   createStripeCheckout,
   markInvoiceSent,
   recordPayment,
@@ -120,41 +119,27 @@ export default async function InvoicePage({
         </div>
       ) : null}
 
-      {firstPaymentIsPaid ? (
-        <div className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 sm:flex-row sm:items-center">
+           {existingJob ? (
+        <div className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-blue-200 bg-blue-50 p-5 sm:flex-row sm:items-center">
           <div>
-            <p className="font-bold text-emerald-950">
-              First scheduled payment received
+            <p className="font-bold text-blue-950">
+              {existingJob.job_number}
             </p>
-            <p className="mt-1 text-sm text-emerald-800">
-              This invoice is eligible for job creation.
+            <p className="mt-1 text-sm text-blue-800">
+              {firstPaymentIsPaid
+                ? "Payment received — ready to schedule."
+                : "Awaiting first payment. Job can still be scheduled."}
             </p>
           </div>
 
-          {existingJob ? (
-            <Link
-              href={`/jobs/${existingJob.id}`}
-              className="rounded-xl bg-emerald-700 px-4 py-3 text-center font-semibold text-white"
-            >
-              Open {existingJob.job_number}
-            </Link>
-          ) : (
-            <form action={createJob}>
-              <input type="hidden" name="invoiceId" value={invoice.id} />
-              <button className="w-full rounded-xl bg-emerald-700 px-4 py-3 font-semibold text-white hover:bg-emerald-800">
-                Create job
-              </button>
-            </form>
-          )}
+          <Link
+            href={`/jobs/${existingJob.id}`}
+            className="rounded-xl bg-blue-700 px-4 py-3 text-center font-semibold text-white hover:bg-blue-800"
+          >
+            Open {existingJob.job_number}
+          </Link>
         </div>
-      ) : (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-          <p className="font-bold text-amber-950">Job creation locked</p>
-          <p className="mt-1 text-sm text-amber-800">
-            Record the first scheduled payment to unlock the job.
-          </p>
-        </div>
-      )}
+      ) : null}
 
       <div className="no-print mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-blue-200 bg-blue-50 p-5 sm:flex-row sm:items-center">
         <div>

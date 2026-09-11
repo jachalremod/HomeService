@@ -45,14 +45,24 @@ export function JobCalendar({
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const jobsByDate = useMemo(() => {
+    const jobsByDate = useMemo(() => {
     const map = new Map<string, Job[]>();
     for (const job of jobs) {
       if (!job.scheduled_start) continue;
-      const key = job.scheduled_start.slice(0, 10);
-      const existing = map.get(key) ?? [];
-      existing.push(job);
-      map.set(key, existing);
+
+      const start = new Date(`${job.scheduled_start}T00:00:00`);
+      const end = job.scheduled_end
+        ? new Date(`${job.scheduled_end}T00:00:00`)
+        : start;
+
+      const cursor = new Date(start);
+      while (cursor <= end) {
+        const key = toDateKey(cursor);
+        const existing = map.get(key) ?? [];
+        existing.push(job);
+        map.set(key, existing);
+        cursor.setDate(cursor.getDate() + 1);
+      }
     }
     return map;
   }, [jobs]);

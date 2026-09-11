@@ -18,6 +18,9 @@ type Job = {
     city: string | null;
     state: string | null;
   } | null;
+  invoices: {
+    payment_schedules: { status: string }[];
+  } | null;
 };
 
 type Tab = "new" | "scheduled" | "in_progress" | "completed";
@@ -88,10 +91,19 @@ export function JobsTabs({
                   </h2>
                 </div>
 
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold capitalize text-slate-700">
-                  {job.status.replace("_", " ")}
-                </span>
+                                              {tab !== "new" ? (
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold capitalize text-slate-700">
+                    {job.status.replace("_", " ")}
+                  </span>
+                ) : null}
               </div>
+
+              {job.invoices?.payment_schedules?.[0]?.status !== "paid" &&
+              job.invoices?.payment_schedules?.[0]?.status !== undefined ? (
+                <span className="mt-2 inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
+                  Awaiting payment
+                </span>
+              ) : null}
 
               <p className="mt-4 text-sm font-semibold text-slate-700">
                 {job.customers?.first_name} {job.customers?.last_name}
@@ -108,16 +120,25 @@ export function JobsTabs({
                 </p>
               ) : null}
 
-              {tab === "new" ? (
-                <form action={scheduleAction} className="mt-4 space-y-2">
+                           {tab === "new" ? (
+                                <form action={scheduleAction} className="mt-4 space-y-2">
                   <input type="hidden" name="jobId" value={job.id} />
+                  <input type="hidden" name="returnTo" value="/schedule" />
                   <label className="block text-xs font-semibold text-slate-600">
-                    Add to calendar
+                    Start date
                   </label>
                   <input
                     type="date"
                     name="scheduledStart"
                     required
+                    className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-950"
+                  />
+                  <label className="block text-xs font-semibold text-slate-600">
+                    End date (optional)
+                  </label>
+                  <input
+                    type="date"
+                    name="scheduledEnd"
                     className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-950"
                   />
                   <button className="w-full rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700">
