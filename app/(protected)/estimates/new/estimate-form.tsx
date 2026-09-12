@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -9,7 +9,7 @@ type CustomerOption = { id: string; first_name: string; last_name: string; email
 type BusinessProfile = { company_name: string; phone: string | null; email: string | null; license_number: string | null; logo_url: string | null; default_terms: string | null; estimate_contract_template?: string | null };
 type EstimateItem = { id: string; title: string; description: string; quantity: number; unitPrice: number };
 type PaymentScheduleItem = { id: string; title: string; percentage: number | "" };
-type InitialEstimate = { id: string; estimateNumber: string; customerId: string; title: string; expiresAt: string; taxRate: number; notes: string; terms: string; showQuantity?: boolean; showRate?: boolean; items: EstimateItem[]; paymentSchedule?: PaymentScheduleItem[] };
+type InitialEstimate = { id: string; estimateNumber: string; customerId: string; title: string; expiresAt: string; taxRate: number; notes: string; terms: string; showQuantity?: boolean; showRate?: boolean; items: EstimateItem[]; paymentSchedule?: PaymentScheduleItem[]; poNumber?: string; markupType?: "percentage" | "fixed"; markupValue?: number; discountType?: "percentage" | "fixed"; discountValue?: number };
 type EstimateFormProps = { customers: CustomerOption[]; business: BusinessProfile | null; initialEstimate?: InitialEstimate };
 
 function money(value: number) {
@@ -37,6 +37,13 @@ export default function EstimateForm({ customers, business, initialEstimate }: E
   const [expandedItemId, setExpandedItemId] = useState<string | null>(initialEstimate?.items?.[0]?.id ?? "initial-item");
   const [items, setItems] = useState<EstimateItem[]>(initialEstimate?.items?.length ? initialEstimate.items : [{ id: "initial-item", title: "", description: "", quantity: 1, unitPrice: 0 }]);
   const [scheduleExpanded, setScheduleExpanded] = useState(false);
+  const [poNumber, setPoNumber] = useState(initialEstimate?.poNumber ?? "");
+  const [markupType, setMarkupType] = useState<"percentage" | "fixed">(initialEstimate?.markupType ?? "percentage");
+  const [markupValue, setMarkupValue] = useState(initialEstimate?.markupValue ?? 0);
+  const [discountType, setDiscountType] = useState<"percentage" | "fixed">(initialEstimate?.discountType ?? "percentage");
+  const [discountValue, setDiscountValue] = useState(initialEstimate?.discountValue ?? 0);
+  const [markupExpanded, setMarkupExpanded] = useState(false);
+  const [discountExpanded, setDiscountExpanded] = useState(false);
   const [paymentSchedule, setPaymentSchedule] = useState<PaymentScheduleItem[]>(
     initialEstimate?.paymentSchedule?.length
       ? initialEstimate.paymentSchedule
@@ -44,9 +51,12 @@ export default function EstimateForm({ customers, business, initialEstimate }: E
   );
 
   const selectedCustomer = customers.find((customer) => customer.id === customerId);
-  const subtotal = useMemo(() => items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0), [items]);
-  const taxAmount = subtotal * (taxRate / 100);
-  const total = subtotal + taxAmount;
+    const subtotal = useMemo(() => items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0), [items]);
+  const markupAmount = markupType === "percentage" ? subtotal * (Number(markupValue) / 100) : Number(markupValue);
+  const discountAmount = discountType === "percentage" ? subtotal * (Number(discountValue) / 100) : Number(discountValue);
+  const adjustedSubtotal = subtotal + markupAmount - discountAmount;
+  const taxAmount = adjustedSubtotal * (taxRate / 100);
+  const total = adjustedSubtotal + taxAmount;
   const formAction = initialEstimate ? updateEstimate.bind(null, initialEstimate.id) : createEstimate;
   const cancelHref = initialEstimate ? `/estimates/${initialEstimate.id}` : "/estimates";
   const scheduleRemaining = 100 - paymentSchedule.reduce((sum, s) => sum + Number(s.percentage || 0), 0);
@@ -87,7 +97,11 @@ export default function EstimateForm({ customers, business, initialEstimate }: E
     <form action={formAction} className="-mx-4 sm:-mx-6 lg:-mx-8">
       <input type="hidden" name="items" value={JSON.stringify(items.map(({ title, description, quantity, unitPrice }) => ({ title, description, quantity, unitPrice })))} />
       <input type="hidden" name="paymentSchedule" value={JSON.stringify(paymentSchedule.map(({ title, percentage }) => ({ title, percentage: Number(percentage) || 0 })))} />
-
+      <input type="hidden" name="poNumber" value={poNumber} />
+      <input type="hidden" name="markupType" value={markupType} />
+      <input type="hidden" name="markupValue" value={markupValue} />
+      <input type="hidden" name="discountType" value={discountType} />
+      <input type="hidden" name="discountValue" value={discountValue} />
       <header className="sticky top-0 z-30 flex flex-col gap-4 border-b border-slate-200 bg-white/95 px-5 py-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between lg:px-8">
         <div>
           <p className="text-sm font-semibold text-slate-500">{initialEstimate ? "Edit estimate" : "New estimate"}</p>
@@ -144,9 +158,13 @@ export default function EstimateForm({ customers, business, initialEstimate }: E
                 Date
                 <input readOnly value={today()} className={`${inputClass} mt-1 bg-slate-50 text-sm`} />
               </label>
-              <label htmlFor="expiresAt" className="block text-xs font-semibold text-slate-600">
+                            <label htmlFor="expiresAt" className="block text-xs font-semibold text-slate-600">
                 Expiration date
                 <input id="expiresAt" name="expiresAt" type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} className={`${inputClass} mt-1 text-sm`} />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600">
+                PO Number
+                <input value={poNumber} onChange={(event) => setPoNumber(event.target.value)} className={`${inputClass} mt-1 text-sm`} />
               </label>
             </div>
           </div>
@@ -197,13 +215,84 @@ export default function EstimateForm({ customers, business, initialEstimate }: E
 
           <aside className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-28">
             <dl className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4"><dt className="font-semibold text-slate-600">Subtotal</dt><dd className="font-bold text-slate-950">{money(subtotal)}</dd></div>
-              <div className="flex items-center justify-between gap-5 border-b border-slate-100 pb-4"><dt><label htmlFor="taxRate" className="font-semibold text-slate-600">Tax</label></dt><dd className="flex items-center gap-3"><div className="relative w-24"><input id="taxRate" name="taxRate" type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(Number(event.target.value))} className={`${inputClass} pr-7 text-right`} /><span className="pointer-events-none absolute right-3 top-2.5 text-slate-400">%</span></div><span className="w-24 text-right font-semibold text-slate-700">{money(taxAmount)}</span></dd></div>
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-4"><dt className="font-semibold text-slate-600">Subtotal</dt><dd className="font-bold text-slate-950">{money(subtotal)}</dd></div>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <dt className="font-semibold text-slate-600">Markup</dt>
+                <dd className="flex items-center gap-3">
+                  {markupAmount > 0 ? <span className="font-semibold text-slate-700">{money(markupAmount)}</span> : null}
+                  <button type="button" onClick={() => setMarkupExpanded(true)} className="font-semibold text-emerald-700 hover:underline">{markupAmount > 0 ? "Edit" : "Add"}</button>
+                </dd>
+              </div>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <dt className="font-semibold text-slate-600">Discount</dt>
+                <dd className="flex items-center gap-3">
+                  {discountAmount > 0 ? <span className="font-semibold text-slate-700">-{money(discountAmount)}</span> : null}
+                  <button type="button" onClick={() => setDiscountExpanded(true)} className="font-semibold text-emerald-700 hover:underline">{discountAmount > 0 ? "Edit" : "Add"}</button>
+                </dd>
+              </div>
               <div className="flex items-center justify-between border-b border-slate-100 pb-4"><dt className="font-semibold text-slate-600">Payment Schedule</dt><dd><button type="button" onClick={() => setScheduleExpanded(true)} className="font-semibold text-emerald-700 hover:underline">Add</button></dd></div>
+              <div className="flex items-center justify-between gap-5 border-b border-slate-100 pb-4"><dt><label htmlFor="taxRate" className="font-semibold text-slate-600">Tax</label></dt><dd className="flex items-center gap-3"><div className="relative w-24"><input id="taxRate" name="taxRate" type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(Number(event.target.value))} className={`${inputClass} pr-7 text-right`} /><span className="pointer-events-none absolute right-3 top-2.5 text-slate-400">%</span></div><span className="w-24 text-right font-semibold text-slate-700">{money(taxAmount)}</span></dd></div>
               <div className="flex items-center justify-between pt-1 text-xl"><dt className="font-bold text-slate-950">Total (USD)</dt><dd className="font-bold text-slate-950">{money(total)}</dd></div>
             </dl>
           </aside>
         </div>
+        {markupExpanded ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+              <div className="border-b border-slate-200 px-6 py-4">
+                <h2 className="text-lg font-bold text-slate-950">Markup</h2>
+              </div>
+              <div className="px-6 py-5">
+                <div className="mb-4 flex gap-4">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <input type="radio" name="markupTypeChoice" checked={markupType === "percentage"} onChange={() => setMarkupType("percentage")} className="accent-emerald-600" />
+                    %
+                  </label>
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <input type="radio" name="markupTypeChoice" checked={markupType === "fixed"} onChange={() => setMarkupType("fixed")} className="accent-emerald-600" />
+                    $
+                  </label>
+                </div>
+                <label className="mb-1 block text-xs font-semibold text-slate-500">Markup amount</label>
+                <input type="number" min="0" step="0.01" value={markupValue} onChange={(e) => setMarkupValue(Number(e.target.value))} className={inputClass} />
+                <p className="mt-3 text-sm text-slate-600">Adds {money(markupAmount)} to the subtotal.</p>
+              </div>
+              <div className="flex justify-end gap-4 border-t border-slate-200 px-6 py-4">
+                <button type="button" onClick={() => { setMarkupValue(0); setMarkupExpanded(false); }} className="font-semibold text-slate-600 hover:underline">Clear</button>
+                <button type="button" onClick={() => setMarkupExpanded(false)} className="font-semibold text-emerald-700 hover:underline">Done</button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {discountExpanded ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+              <div className="border-b border-slate-200 px-6 py-4">
+                <h2 className="text-lg font-bold text-slate-950">Discount</h2>
+              </div>
+              <div className="px-6 py-5">
+                <div className="mb-4 flex gap-4">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <input type="radio" name="discountTypeChoice" checked={discountType === "percentage"} onChange={() => setDiscountType("percentage")} className="accent-emerald-600" />
+                    %
+                  </label>
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <input type="radio" name="discountTypeChoice" checked={discountType === "fixed"} onChange={() => setDiscountType("fixed")} className="accent-emerald-600" />
+                    $
+                  </label>
+                </div>
+                <label className="mb-1 block text-xs font-semibold text-slate-500">Discount amount</label>
+                <input type="number" min="0" step="0.01" value={discountValue} onChange={(e) => setDiscountValue(Number(e.target.value))} className={inputClass} />
+                <p className="mt-3 text-sm text-slate-600">Subtracts {money(discountAmount)} from the subtotal.</p>
+              </div>
+              <div className="flex justify-end gap-4 border-t border-slate-200 px-6 py-4">
+                <button type="button" onClick={() => { setDiscountValue(0); setDiscountExpanded(false); }} className="font-semibold text-slate-600 hover:underline">Clear</button>
+                <button type="button" onClick={() => setDiscountExpanded(false)} className="font-semibold text-emerald-700 hover:underline">Done</button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {scheduleExpanded ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

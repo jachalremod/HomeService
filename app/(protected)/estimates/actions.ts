@@ -13,14 +13,18 @@ const paymentScheduleItemSchema = z.object({
 const estimateSchema = z.object({
   customerId: z.uuid(),
   title: z.string().trim().min(1),
+  poNumber: z.string().trim(),
   taxRate: z.coerce.number().min(0).max(100),
+  markupType: z.enum(["percentage", "fixed"]),
+  markupValue: z.coerce.number().min(0),
+  discountType: z.enum(["percentage", "fixed"]),
+  discountValue: z.coerce.number().min(0),
   notes: z.string().trim(),
   terms: z.string().trim(),
   expiresAt: z.union([z.literal(""), z.iso.date()]),
   showQuantity: z.boolean(),
   showRate: z.boolean(),
-});
-const itemSchema = z.object({
+});const itemSchema = z.object({
   title: z.string().trim().min(1),
   description: z.string().trim().min(1),
   quantity: z.coerce.number().positive(),
@@ -28,10 +32,15 @@ const itemSchema = z.object({
 });
 
 export async function createEstimate(formData: FormData) {
-  const estimateResult = estimateSchema.safeParse({
+    const estimateResult = estimateSchema.safeParse({
     customerId: formData.get("customerId"),
     title: formData.get("title"),
+    poNumber: formData.get("poNumber"),
     taxRate: formData.get("taxRate"),
+    markupType: formData.get("markupType") || "percentage",
+    markupValue: formData.get("markupValue") || 0,
+    discountType: formData.get("discountType") || "percentage",
+    discountValue: formData.get("discountValue") || 0,
     notes: formData.get("notes"),
     terms: formData.get("terms"),
     expiresAt: formData.get("expiresAt"),
@@ -85,12 +94,24 @@ export async function createEstimate(formData: FormData) {
     sortOrder: index,
   }));
 
-  const subtotal =
+    const subtotal =
     Math.round(items.reduce((sum, item) => sum + item.amount, 0) * 100) / 100;
 
+  const markupAmount =
+    estimateResult.data.markupType === "percentage"
+      ? Math.round(subtotal * (estimateResult.data.markupValue / 100) * 100) / 100
+      : Math.round(estimateResult.data.markupValue * 100) / 100;
+
+  const discountAmount =
+    estimateResult.data.discountType === "percentage"
+      ? Math.round(subtotal * (estimateResult.data.discountValue / 100) * 100) / 100
+      : Math.round(estimateResult.data.discountValue * 100) / 100;
+
+  const adjustedSubtotal = Math.round((subtotal + markupAmount - discountAmount) * 100) / 100;
+
   const taxRate = estimateResult.data.taxRate;
-  const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100;
-  const total = Math.round((subtotal + taxAmount) * 100) / 100;
+  const taxAmount = Math.round(adjustedSubtotal * (taxRate / 100) * 100) / 100;
+  const total = Math.round((adjustedSubtotal + taxAmount) * 100) / 100;
   const {
     data: nextEstimateNumber,
     error: estimateNumberError,
@@ -116,17 +137,22 @@ export async function createEstimate(formData: FormData) {
     .from("estimates")
     .insert({
       user_id: user.id,
-      customer_id: estimateResult.data.customerId,
+            customer_id: estimateResult.data.customerId,
       estimate_number: estimateNumber,
       title: estimateResult.data.title,
       description: null,
+      po_number: estimateResult.data.poNumber || null,
       tax_rate: taxRate,
-      subtotal,
+      subtotal: adjustedSubtotal,
       tax_amount: taxAmount,
       total,
+      markup_type: estimateResult.data.markupType,
+      markup_value: estimateResult.data.markupValue,
+      discount_type: estimateResult.data.discountType,
+      discount_value: estimateResult.data.discountValue,
       notes: estimateResult.data.notes || null,
       terms: estimateResult.data.terms || null,
-            expires_at: estimateResult.data.expiresAt || null,
+      expires_at: estimateResult.data.expiresAt || null,
       show_quantity: estimateResult.data.showQuantity,
       show_rate: estimateResult.data.showRate,
       payment_schedule: scheduleResult.data,
@@ -278,10 +304,15 @@ export async function updateEstimate(
 ) {
   const idResult = z.uuid().safeParse(estimateId);
 
-  const estimateResult = estimateSchema.safeParse({
+    const estimateResult = estimateSchema.safeParse({
     customerId: formData.get("customerId"),
     title: formData.get("title"),
+    poNumber: formData.get("poNumber"),
     taxRate: formData.get("taxRate"),
+    markupType: formData.get("markupType") || "percentage",
+    markupValue: formData.get("markupValue") || 0,
+    discountType: formData.get("discountType") || "percentage",
+    discountValue: formData.get("discountValue") || 0,
     notes: formData.get("notes"),
     terms: formData.get("terms"),
     expiresAt: formData.get("expiresAt"),
@@ -357,7 +388,7 @@ export async function updateEstimate(
     sortOrder: index,
   }));
 
-  const subtotal =
+    const subtotal =
     Math.round(
       items.reduce(
         (sum, item) => sum + item.amount,
@@ -365,25 +396,42 @@ export async function updateEstimate(
       ) * 100,
     ) / 100;
 
+  const markupAmount =
+    estimateResult.data.markupType === "percentage"
+      ? Math.round(subtotal * (estimateResult.data.markupValue / 100) * 100) / 100
+      : Math.round(estimateResult.data.markupValue * 100) / 100;
+
+  const discountAmount =
+    estimateResult.data.discountType === "percentage"
+      ? Math.round(subtotal * (estimateResult.data.discountValue / 100) * 100) / 100
+      : Math.round(estimateResult.data.discountValue * 100) / 100;
+
+  const adjustedSubtotal = Math.round((subtotal + markupAmount - discountAmount) * 100) / 100;
+
   const taxRate = estimateResult.data.taxRate;
   const taxAmount =
-    Math.round(subtotal * (taxRate / 100) * 100) / 100;
+    Math.round(adjustedSubtotal * (taxRate / 100) * 100) / 100;
   const total =
-    Math.round((subtotal + taxAmount) * 100) / 100;
+    Math.round((adjustedSubtotal + taxAmount) * 100) / 100;
 
   const { data: updatedEstimate, error: estimateError } =
     await supabase
       .from("estimates")
       .update({
-        customer_id: estimateResult.data.customerId,
+                customer_id: estimateResult.data.customerId,
         title: estimateResult.data.title,
         description: null,
+        po_number: estimateResult.data.poNumber || null,
         expires_at:
           estimateResult.data.expiresAt || null,
         tax_rate: taxRate,
-        subtotal,
+        subtotal: adjustedSubtotal,
         tax_amount: taxAmount,
         total,
+        markup_type: estimateResult.data.markupType,
+        markup_value: estimateResult.data.markupValue,
+        discount_type: estimateResult.data.discountType,
+        discount_value: estimateResult.data.discountValue,
         notes: estimateResult.data.notes || null,
         terms: estimateResult.data.terms || null,
         show_quantity: estimateResult.data.showQuantity,
