@@ -100,39 +100,55 @@ export default function EstimateForm({ customers, business, initialEstimate }: E
       </header>
 
       <div className="mx-auto max-w-6xl space-y-6 px-5 py-7 lg:px-8">
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-          <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-            <div className="flex items-start gap-5">
-              {business?.logo_url ? (
-                <div role="img" aria-label={`${business.company_name} logo`} className="size-24 shrink-0 bg-contain bg-center bg-no-repeat sm:size-32" style={{ backgroundImage: `url("${business.logo_url}")` }} />
-              ) : (
-                <div className="flex size-24 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 sm:size-32"><Building2 size={42} /></div>
-              )}
-              <div className="min-w-0 pt-1">
-                <p className="text-lg font-bold text-slate-950">{business?.company_name ?? "ServiceAxiom Contractor"}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{business?.phone || ""}{business?.phone && business?.email ? <br /> : null}{business?.email || ""}</p>
-                {business?.license_number ? <p className="mt-1 text-sm text-slate-500">License #{business.license_number}</p> : null}
-              </div>
-            </div>
-
+                <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+          <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">Client *</label>
-              <div className="rounded-lg border-2 border-emerald-500 p-4">
-                <div className="flex items-center gap-3 text-emerald-700"><UserRoundPlus size={24} /><span className="font-semibold">{selectedCustomer ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}` : "Add client"}</span></div>
-                <select id="customerId" name="customerId" required value={customerId} onChange={(event) => setCustomerId(event.target.value)} className="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-emerald-600">
-                  <option value="">Select customer</option>
-                  {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.first_name} {customer.last_name}</option>)}
-                </select>
-                {selectedCustomer ? <p className="mt-2 text-xs leading-5 text-slate-500">{selectedCustomer.project_address}{selectedCustomer.city ? `, ${selectedCustomer.city}` : ""}{selectedCustomer.state ? `, ${selectedCustomer.state}` : ""}</p> : null}
+              <div className="flex items-start gap-4">
+                {business?.logo_url ? (
+                  <div role="img" aria-label={`${business.company_name} logo`} className="size-16 shrink-0 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url("${business.logo_url}")` }} />
+                ) : (
+                  <div className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500"><Building2 size={28} /></div>
+                )}
+                <div className="min-w-0 pt-1 text-xs leading-5 text-slate-500">
+                  <p className="text-sm font-bold text-slate-900">{business?.company_name ?? "ServiceAxiom Contractor"}</p>
+                  {business?.phone ? <p>{business.phone}</p> : null}
+                  {business?.email ? <p>{business.email}</p> : null}
+                  {business?.license_number ? <p>License #{business.license_number}</p> : null}
+                </div>
               </div>
-            </div>
-          </div>
 
-          <div className="mt-8 grid gap-4 border-t border-slate-200 pt-6 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="block text-sm font-semibold text-slate-700">Estimate #<input readOnly value={initialEstimate?.estimateNumber ?? "Assigned when saved"} className={`${inputClass} mt-2 bg-slate-50 text-slate-500`} /></label>
-            <label className="block text-sm font-semibold text-slate-700">Date<input readOnly value={today()} className={`${inputClass} mt-2 bg-slate-50`} /></label>
-            <label htmlFor="expiresAt" className="block text-sm font-semibold text-slate-700">Expiration date<input id="expiresAt" name="expiresAt" type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} className={`${inputClass} mt-2`} /></label>
-            <label htmlFor="title" className="block text-sm font-semibold text-slate-700">Project title *<input id="title" name="title" required value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Project title" className={`${inputClass} mt-2`} /></label>
+              <label htmlFor="title" className="mt-6 block text-sm font-semibold text-slate-700">
+                Project title *
+                <input id="title" name="title" required value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Project title" className={`${inputClass} mt-2`} />
+              </label>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Client *</label>
+                <div className="rounded-lg border-2 border-emerald-500 p-4">
+                  <div className="flex items-center gap-3 text-emerald-700"><UserRoundPlus size={24} /><span className="font-semibold">{selectedCustomer ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}` : "Add client"}</span></div>
+                  <select id="customerId" name="customerId" required value={customerId} onChange={(event) => setCustomerId(event.target.value)} className="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-emerald-600">
+                    <option value="">Select customer</option>
+                    {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.first_name} {customer.last_name}</option>)}
+                  </select>
+                  {selectedCustomer ? <p className="mt-2 text-xs leading-5 text-slate-500">{selectedCustomer.project_address}{selectedCustomer.city ? `, ${selectedCustomer.city}` : ""}{selectedCustomer.state ? `, ${selectedCustomer.state}` : ""}</p> : null}
+                </div>
+              </div>
+
+              <label className="block text-xs font-semibold text-slate-600">
+                Estimate #
+                <input readOnly value={initialEstimate?.estimateNumber ?? "Assigned when saved"} className={`${inputClass} mt-1 bg-slate-50 text-sm text-slate-500`} />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600">
+                Date
+                <input readOnly value={today()} className={`${inputClass} mt-1 bg-slate-50 text-sm`} />
+              </label>
+              <label htmlFor="expiresAt" className="block text-xs font-semibold text-slate-600">
+                Expiration date
+                <input id="expiresAt" name="expiresAt" type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} className={`${inputClass} mt-1 text-sm`} />
+              </label>
+            </div>
           </div>
         </section>
 
