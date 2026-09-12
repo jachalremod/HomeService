@@ -112,7 +112,8 @@ export default async function EstimatePage({
           />
 
           {estimate.status === "draft" ? (
-            <SendEstimateButtons
+              <SendEstimateButtons
+              estimateId={estimate.id}
               customerEmail={customer?.email ?? null}
               customerPhone={customer?.phone ?? null}
               customerName={

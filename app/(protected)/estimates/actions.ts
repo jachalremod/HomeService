@@ -449,3 +449,53 @@ export async function updateEstimate(
     `/estimates/${idResult.data}?message=Estimate+updated`,
   );
 }
+export async function sendEstimateEmail(estimateId: string) {
+  const supabase = await createClient();
+
+  const { data: estimate } = await supabase
+    .from("estimates")
+    .select(
+      "id, estimate_number, title, public_token, organization_id, customers(first_name, last_name, email)",
+    )
+    .eq("id", estimateId)
+    .single();
+
+  if (!estimate || !estimate.customers?.email) {
+    return { success: false, message: "This client doesn't have an email address on file" };
+  }
+
+  const { data: business } = await supabase
+    .from("business_profiles")
+    .select("company_name, email")
+    .eq("organization_id", estimate.organization_id)
+    .maybeSingle();
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const link = `${appUrl}/e/${estimate.public_token}`;
+  const companyName = business?.company_name ?? "your contractor";
+
+  try {
+    const { resend } = await import("@/lib/resend");
+
+      await resend.emails.send({
+      from: `${companyName} <onboarding@resend.dev>`,
+      to: estimate.customers.email,
+      replyTo: business?.email || undefined,
+      subject: `Estimate ${estimate.estimate_number} from ${companyName}`,
+      html: `<p>Hello ${estimate.customers.first_name},</p><p>Please review your estimate from ${companyName}:</p><p><a href="${link}">${link}</a></p><p>Thank you.</p>`,
+    });
+
+    await supabase
+      .from("estimates")
+      .update({ status: "sent" })
+      .eq("id", estimateId)
+      .eq("status", "draft");
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to send email",
+    };
+  }
+}
