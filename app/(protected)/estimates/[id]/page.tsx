@@ -111,19 +111,10 @@ export default async function EstimatePage({
             showRate={estimate.show_rate}
           />
 
-          {estimate.status === "draft" ? (
-              <SendEstimateButtons
-              estimateId={estimate.id}
-              customerEmail={customer?.email ?? null}
-              customerPhone={customer?.phone ?? null}
-              customerName={
-                `${customer?.first_name ?? ""} ${customer?.last_name ?? ""}`.trim() ||
-                "there"
-              }
-              estimateNumber={estimate.estimate_number}
-              publicToken={estimate.public_token}
-            />
-          ) : null}
+                                 <SendEstimateButtons
+            estimateId={estimate.id}
+            customerEmail={customer?.email ?? null}
+          />
 
           {estimate.status === "draft" ? (
             <form action={markEstimateSent}>

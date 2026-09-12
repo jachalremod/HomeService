@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Mail, MessageSquareText } from "lucide-react";
+import { Mail } from "lucide-react";
 import { sendEstimateEmail } from "../actions";
 
 type SendEstimateButtonsProps = {
   estimateId: string;
   customerEmail: string | null;
-  customerPhone: string | null;
-  customerName: string;
   estimateNumber: string;
   publicToken: string;
 };
@@ -16,17 +14,9 @@ type SendEstimateButtonsProps = {
 export default function SendEstimateButtons({
   estimateId,
   customerEmail,
-  customerPhone,
-  customerName,
-  estimateNumber,
-  publicToken,
 }: SendEstimateButtonsProps) {
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ success: boolean; message?: string } | null>(null);
-
-  function estimateUrl() {
-    return `${window.location.origin}/e/${publicToken}`;
-  }
 
   function emailEstimate() {
     setResult(null);
@@ -34,11 +24,6 @@ export default function SendEstimateButtons({
       const response = await sendEstimateEmail(estimateId);
       setResult(response.success ? { success: true } : { success: false, message: response.message });
     });
-  }
-
-  function textEstimate() {
-    const body = `Hello ${customerName}, please review estimate ${estimateNumber}: ${estimateUrl()}`;
-    window.location.href = `sms:${customerPhone ?? ""}?body=${encodeURIComponent(body)}`;
   }
 
   return (
@@ -53,17 +38,6 @@ export default function SendEstimateButtons({
         >
           <Mail size={18} />
           {isPending ? "Sending…" : "Email client"}
-        </button>
-
-        <button
-          type="button"
-          onClick={textEstimate}
-          disabled={!customerPhone}
-          title={customerPhone ? `Text ${customerPhone}` : "Add a phone number to this client first"}
-          className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 font-semibold text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-300"
-        >
-          <MessageSquareText size={18} />
-          Text client
         </button>
       </div>
 
