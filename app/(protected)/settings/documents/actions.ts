@@ -9,27 +9,27 @@ const documentSettingsSchema = z.object({
   estimateContractTemplate: z.string().trim(),
   defaultTerms: z.string().trim(),
   paymentInstructions: z.string().trim(),
-  defaultPaymentSchedule: z.string().trim(),
+  paymentScheduleTiers: z.string().trim(),
 });
 
 export async function saveDocumentSettings(formData: FormData) {
-    const result = documentSettingsSchema.safeParse({
+  const result = documentSettingsSchema.safeParse({
     estimateContractTemplate: formData.get("estimateContractTemplate"),
     defaultTerms: formData.get("defaultTerms"),
     paymentInstructions: formData.get("paymentInstructions"),
-    defaultPaymentSchedule: formData.get("defaultPaymentSchedule"),
+    paymentScheduleTiers: formData.get("paymentScheduleTiers"),
   });
-
-  let parsedSchedule: unknown = [];
-  try {
-    parsedSchedule = JSON.parse(result.data?.defaultPaymentSchedule || "[]");
-  } catch {}
 
   if (!result.success) {
     redirect("/settings/documents?message=Unable+to+save+document+settings");
   }
 
-    const supabase = await createClient();
+  let parsedTiers: unknown = [];
+  try {
+    parsedTiers = JSON.parse(result.data.paymentScheduleTiers || "[]");
+  } catch {}
+
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -48,7 +48,7 @@ export async function saveDocumentSettings(formData: FormData) {
       default_terms: result.data.defaultTerms || null,
       payment_instructions:
         result.data.paymentInstructions || null,
-      default_payment_schedule: Array.isArray(parsedSchedule) && parsedSchedule.length > 0 ? parsedSchedule : null,
+      payment_schedule_tiers: Array.isArray(parsedTiers) && parsedTiers.length > 0 ? parsedTiers : null,
     })
     .eq("organization_id", organizationId);
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, FileText, Save } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { saveDocumentSettings } from "./actions";
-import DefaultPaymentScheduleEditor from "./default-payment-schedule-editor";
+import PaymentScheduleTiersEditor from "./payment-schedule-tiers-editor";
 
 type DocumentSettingsPageProps = {
   searchParams: Promise<{ message?: string }>;
@@ -14,10 +14,10 @@ export default async function DocumentSettingsPage({
   const { message } = await searchParams;
   const supabase = await createClient();
 
-    const { data: profile } = await supabase
+  const { data: profile } = await supabase
     .from("business_profiles")
     .select(
-      "estimate_contract_template, default_terms, payment_instructions, default_payment_schedule",
+      "estimate_contract_template, default_terms, payment_instructions, payment_schedule_tiers",
     )
     .maybeSingle();
 
@@ -122,16 +122,16 @@ export default async function DocumentSettingsPage({
           />
         </section>
 
-                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-bold text-slate-950">
-            Default payment schedule
+            Payment schedule tiers
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Pre-fill new estimates with a standard payment schedule. You can still adjust it per estimate.
+            Automatically apply a different payment schedule depending on the estimate's total. You can still adjust it per estimate.
           </p>
 
-          <DefaultPaymentScheduleEditor
-            initialSchedule={profile?.default_payment_schedule ?? []}
+          <PaymentScheduleTiersEditor
+            initialTiers={profile?.payment_schedule_tiers ?? []}
           />
         </section>
 

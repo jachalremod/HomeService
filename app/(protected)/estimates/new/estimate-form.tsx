@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Building2, ChevronDown, ChevronUp, Plus, RotateCcw, Save, Trash2, UserRoundPlus } from "lucide-react";
 import { createEstimate, updateEstimate } from "../actions";
 import { saveUserSignature } from "@/lib/user-signature-actions";
@@ -10,9 +10,10 @@ type CustomerOption = { id: string; first_name: string; last_name: string; email
 type BusinessProfile = { company_name: string; phone: string | null; email: string | null; license_number: string | null; logo_url: string | null; default_terms: string | null; estimate_contract_template?: string | null };
 type EstimateItem = { id: string; title: string; description: string; quantity: number; unitPrice: number };
 type PaymentScheduleItem = { id: string; title: string; percentage: number | "" };
-type InitialEstimate = { id: string; estimateNumber: string; customerId: string; title: string; expiresAt: string; taxRate: number; notes: string; terms: string; showQuantity?: boolean; showRate?: boolean; items: EstimateItem[]; paymentSchedule?: PaymentScheduleItem[]; poNumber?: string; markupType?: "percentage" | "fixed"; markupValue?: number; discountType?: "percentage" | "fixed"; discountValue?: number };
 type SavedSignature = { signature_data: string; signature_mode: "draw" | "type"; typed_name: string | null } | null;
-type EstimateFormProps = { customers: CustomerOption[]; business: BusinessProfile | null; initialEstimate?: InitialEstimate; savedSignature?: SavedSignature; defaultPaymentSchedule?: Array<{ title: string; percentage: number }> };
+type ScheduleTier = { minTotal: number; schedule: Array<{ title: string; percentage: number }> };
+type InitialEstimate = { id: string; estimateNumber: string; customerId: string; title: string; expiresAt: string; taxRate: number; notes: string; terms: string; showQuantity?: boolean; showRate?: boolean; items: EstimateItem[]; paymentSchedule?: PaymentScheduleItem[]; poNumber?: string; markupType?: "percentage" | "fixed"; markupValue?: number; discountType?: "percentage" | "fixed"; discountValue?: number };
+type EstimateFormProps = { customers: CustomerOption[]; business: BusinessProfile | null; initialEstimate?: InitialEstimate; savedSignature?: SavedSignature; paymentScheduleTiers?: ScheduleTier[] };
 
 function money(value: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
@@ -22,7 +23,7 @@ function today() {
   return new Intl.DateTimeFormat("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }).format(new Date());
 }
 
-export default function EstimateForm({ customers, business, initialEstimate, savedSignature, defaultPaymentSchedule }: EstimateFormProps) {
+export default function EstimateForm({ customers, business, initialEstimate, savedSignature, paymentScheduleTiers }: EstimateFormProps) {
   const [customerId, setCustomerId] = useState(initialEstimate?.customerId ?? "");
   const [title, setTitle] = useState(initialEstimate?.title ?? "");
   const [expiresAt, setExpiresAt] = useState(initialEstimate?.expiresAt ?? "");
@@ -48,21 +49,16 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
   const [discountExpanded, setDiscountExpanded] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-
-    const [signatureData, setSignatureData] = useState(savedSignature?.signature_data ?? "");
+  const [hasSignature, setHasSignatureState] = useState(!!savedSignature);
+  const [signatureData, setSignatureData] = useState(savedSignature?.signature_data ?? "");
   const [signatureMode, setSignatureMode] = useState<"draw" | "type">(savedSignature?.signature_mode ?? "draw");
   const [typedSignature, setTypedSignature] = useState(savedSignature?.typed_name ?? "");
-    const [hasSavedSignature, setHasSavedSignature] = useState(!!savedSignature);
-  const [hasSignature, setHasSignatureState] = useState(!!savedSignature);
-      const [paymentSchedule, setPaymentSchedule] = useState<PaymentScheduleItem[]>(
-    initialEstimate?.paymentSchedule ??
-      (defaultPaymentSchedule?.length
-        ? defaultPaymentSchedule.map((s, i) => ({ id: `default-${i}`, title: s.title, percentage: s.percentage }))
-        : []),
-  );
+  const [hasSavedSignature, setHasSavedSignature] = useState(!!savedSignature);
+  const [paymentSchedule, setPaymentSchedule] = useState<PaymentScheduleItem[]>(initialEstimate?.paymentSchedule ?? []);
+  const [scheduleTouched, setScheduleTouched] = useState(false);
 
   const selectedCustomer = customers.find((customer) => customer.id === customerId);
-    const subtotal = useMemo(() => items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0), [items]);
+  const subtotal = useMemo(() => items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unitPrice), 0), [items]);
   const markupAmount = markupType === "percentage" ? subtotal * (Number(markupValue) / 100) : Number(markupValue);
   const discountAmount = discountType === "percentage" ? subtotal * (Number(discountValue) / 100) : Number(discountValue);
   const adjustedSubtotal = subtotal + markupAmount - discountAmount;
@@ -71,6 +67,20 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
   const formAction = initialEstimate ? updateEstimate.bind(null, initialEstimate.id) : createEstimate;
   const cancelHref = initialEstimate ? `/estimates/${initialEstimate.id}` : "/estimates";
   const scheduleRemaining = 100 - paymentSchedule.reduce((sum, s) => sum + Number(s.percentage || 0), 0);
+
+  useEffect(() => {
+    if (scheduleTouched) return;
+    if (!paymentScheduleTiers || paymentScheduleTiers.length === 0) return;
+
+    const eligibleTiers = paymentScheduleTiers.filter((tier) => total >= tier.minTotal);
+    if (eligibleTiers.length === 0) {
+      setPaymentSchedule([]);
+      return;
+    }
+
+    const bestTier = eligibleTiers.reduce((best, tier) => (tier.minTotal > best.minTotal ? tier : best));
+    setPaymentSchedule(bestTier.schedule.map((s, i) => ({ id: `tier-${i}`, title: s.title, percentage: s.percentage })));
+  }, [total, paymentScheduleTiers, scheduleTouched]);
 
   function updateItem(id: string, field: "title" | "description" | "quantity" | "unitPrice", value: string) {
     setItems((current) => current.map((item) => item.id === id ? { ...item, [field]: field === "title" || field === "description" ? value : Number(value) } : item));
@@ -89,17 +99,20 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
   }
 
   function updateSchedule(id: string, field: "title" | "percentage", value: string) {
+    setScheduleTouched(true);
     setPaymentSchedule((current) =>
       current.map((s) => s.id === id ? { ...s, [field]: field === "percentage" ? (value === "" ? "" : Number(value)) : value } : s),
     );
   }
 
   function addSchedule() {
+    setScheduleTouched(true);
     setPaymentSchedule((current) => [...current, { id: `schedule-${Date.now()}`, title: `${current.length + 1}${["st", "nd", "rd"][current.length] ?? "th"} Payment`, percentage: "" }]);
   }
 
   function removeSchedule(id: string) {
-    setPaymentSchedule((current) => current.length === 1 ? current : current.filter((s) => s.id !== id));
+    setScheduleTouched(true);
+    setPaymentSchedule((current) => current.length === 1 ? current.filter((s) => s.id !== id) : current.filter((s) => s.id !== id));
   }
 
   function getPos(event: React.PointerEvent<HTMLCanvasElement>) {
@@ -136,7 +149,7 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
     setHasSignatureState(true);
   }
 
-    function stopDrawing() {
+  function stopDrawing() {
     setIsDrawing(false);
     const canvas = canvasRef.current;
     if (canvas && hasSignature) {
@@ -155,21 +168,21 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
     setSignatureData("");
   }
 
-    async function applyTypedSignature(name: string) {
+  async function applyTypedSignature(name: string) {
     setTypedSignature(name);
     if (!name.trim()) {
       setSignatureData("");
       return;
     }
     try {
-      await document.fonts.load("56px var(--font-signature)");
+      await document.fonts.load("80px var(--font-signature)");
     } catch {}
     const canvas = document.createElement("canvas");
     canvas.width = 600;
     canvas.height = 150;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-        ctx.fillStyle = "#0f172a";
+    ctx.fillStyle = "#0f172a";
     ctx.font = "80px var(--font-signature)";
     ctx.textBaseline = "middle";
     ctx.fillText(name, 20, 85);
@@ -177,6 +190,7 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
     setSignatureData(dataUrl);
     saveUserSignature(dataUrl, "type", name);
   }
+
   const inputClass = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100";
 
   return (
@@ -189,6 +203,7 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
       <input type="hidden" name="discountType" value={discountType} />
       <input type="hidden" name="discountValue" value={discountValue} />
       <input type="hidden" name="companySignature" value={signatureData} />
+
       <header className="sticky top-0 z-30 flex flex-col gap-4 border-b border-slate-200 bg-white/95 px-5 py-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between lg:px-8">
         <div>
           <p className="text-sm font-semibold text-slate-500">{initialEstimate ? "Edit estimate" : "New estimate"}</p>
@@ -201,7 +216,7 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
       </header>
 
       <div className="mx-auto max-w-6xl space-y-6 px-5 py-7 lg:px-8">
-                <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
           <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
             <div>
               <div className="flex items-start gap-4">
@@ -245,7 +260,7 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
                 Date
                 <input readOnly value={today()} className={`${inputClass} mt-1 bg-slate-50 text-sm`} />
               </label>
-                            <label htmlFor="expiresAt" className="block text-xs font-semibold text-slate-600">
+              <label htmlFor="expiresAt" className="block text-xs font-semibold text-slate-600">
                 Expiration date
                 <input id="expiresAt" name="expiresAt" type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} className={`${inputClass} mt-1 text-sm`} />
               </label>
@@ -302,7 +317,7 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
 
           <aside className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-28">
             <dl className="space-y-4">
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-4"><dt className="font-semibold text-slate-600">Subtotal</dt><dd className="font-bold text-slate-950">{money(subtotal)}</dd></div>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4"><dt className="font-semibold text-slate-600">Subtotal</dt><dd className="font-bold text-slate-950">{money(subtotal)}</dd></div>
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <dt className="font-semibold text-slate-600">Markup</dt>
                 <dd className="flex items-center gap-3">
@@ -317,12 +332,13 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
                   <button type="button" onClick={() => setDiscountExpanded(true)} className="font-semibold text-emerald-700 hover:underline">{discountAmount > 0 ? "Edit" : "Add"}</button>
                 </dd>
               </div>
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4"><dt className="font-semibold text-slate-600">Payment Schedule</dt><dd><button type="button" onClick={() => setScheduleExpanded(true)} className="font-semibold text-emerald-700 hover:underline">Add</button></dd></div>
-              <div className="flex items-center justify-between gap-5 border-b border-slate-100 pb-4"><dt><label htmlFor="taxRate" className="font-semibold text-slate-600">Tax</label></dt><dd className="flex items-center gap-3"><div className="relative w-24"><input id="taxRate" name="taxRate" type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(Number(event.target.value))} className={`${inputClass} pr-7 text-right`} /><span className="pointer-events-none absolute right-3 top-2.5 text-slate-400">%</span></div><span className="w-24 text-right font-semibold text-slate-700">{money(taxAmount)}</span></dd></div>
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-4"><dt className="font-semibold text-slate-600">Payment Schedule</dt><dd><button type="button" onClick={() => setScheduleExpanded(true)} className="font-semibold text-emerald-700 hover:underline">{paymentSchedule.length > 0 ? "Edit" : "Add"}</button></dd></div>
+               <div className="flex items-center justify-between gap-5 border-b border-slate-100 pb-4"><dt><label htmlFor="taxRate" className="font-semibold text-slate-600">Tax</label></dt><dd className="flex items-center gap-3"><div className="relative w-24"><input id="taxRate" name="taxRate" type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(Number(event.target.value))} className={`${inputClass} pr-7 text-right`} /><span className="pointer-events-none absolute right-3 top-2.5 text-slate-400">%</span></div><span className="w-24 text-right font-semibold text-slate-700">{money(taxAmount)}</span></dd></div>
               <div className="flex items-center justify-between pt-1 text-xl"><dt className="font-bold text-slate-950">Total (USD)</dt><dd className="font-bold text-slate-950">{money(total)}</dd></div>
             </dl>
           </aside>
         </div>
+
         {markupExpanded ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
@@ -400,7 +416,7 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
                         <label className="mb-1 block text-xs font-semibold text-slate-500">Payment Amount %</label>
                         <input type="number" min="0" max="100" step="0.01" value={schedule.percentage} onChange={(e) => updateSchedule(schedule.id, "percentage", e.target.value)} className={`${inputClass} text-right`} />
                       </div>
-                      <button type="button" onClick={() => removeSchedule(schedule.id)} disabled={paymentSchedule.length === 1} aria-label="Remove payment" className="mt-6 flex size-9 shrink-0 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 disabled:opacity-30">
+                      <button type="button" onClick={() => removeSchedule(schedule.id)} aria-label="Remove payment" className="mt-6 flex size-9 shrink-0 items-center justify-center rounded-lg text-red-600 hover:bg-red-50">
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -411,33 +427,30 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
                   <Plus size={18} /> Add Payment
                 </button>
 
-                <p className={`mt-4 font-semibold ${Math.abs(scheduleRemaining) < 0.001 ? "text-emerald-700" : "text-slate-700"}`}>
-                  {scheduleRemaining.toFixed(2)}% Remaining
-                </p>
+                {paymentSchedule.length > 0 ? (
+                  <p className={`mt-4 font-semibold ${Math.abs(scheduleRemaining) < 0.001 ? "text-emerald-700" : "text-slate-700"}`}>
+                    {scheduleRemaining.toFixed(2)}% Remaining
+                  </p>
+                ) : (
+                  <p className="mt-4 text-sm text-slate-500">No payment schedule — this estimate will have a single total due.</p>
+                )}
               </div>
 
               <div className="flex justify-end gap-4 border-t border-slate-200 px-6 py-4">
-                <button type="button" onClick={() => setScheduleExpanded(false)} className="font-semibold text-slate-600 hover:underline">Cancel</button>
-                <button
-                  type="button"
-                  onClick={() => setScheduleExpanded(false)}
-                  disabled={Math.abs(scheduleRemaining) > 0.001}
-                  className="font-semibold text-emerald-700 hover:underline disabled:opacity-40"
-                >
-                  Done
-                </button>
+                <button type="button" onClick={() => { setPaymentSchedule([]); setScheduleTouched(true); setScheduleExpanded(false); }} className="font-semibold text-slate-600 hover:underline">Clear</button>
+                <button type="button" onClick={() => setScheduleExpanded(false)} className="font-semibold text-emerald-700 hover:underline">Done</button>
               </div>
             </div>
           </div>
         ) : null}
 
-                        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
           <h2 className="text-lg font-bold text-slate-950">Your signature</h2>
           <p className="mt-1 text-sm text-slate-500">
             {hasSignature && hasSavedSignature ? "Using your saved signature." : "Sign now so this estimate is ready for the customer to counter-sign."}
           </p>
 
-                    <div className="mt-4 flex items-center gap-2">
+          <div className="mt-4 flex items-center gap-2">
             <button type="button" onClick={() => { setSignatureMode("draw"); setSignatureData(""); setHasSignatureState(false); setHasSavedSignature(false); }} className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${signatureMode === "draw" ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"}`}>
               Draw
             </button>
@@ -484,7 +497,7 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
           )}
         </section>
 
-                <div className="flex justify-end gap-3 pb-8"><Link href={cancelHref} className="rounded-full bg-slate-100 px-8 py-3 font-semibold text-slate-700 hover:bg-slate-200">Cancel</Link><button type="submit" className="flex items-center gap-2 rounded-full bg-emerald-600 px-9 py-3 font-semibold text-white hover:bg-emerald-700"><Save size={18} /> Save estimate</button></div>
+        <div className="flex justify-end gap-3 pb-8"><Link href={cancelHref} className="rounded-full bg-slate-100 px-8 py-3 font-semibold text-slate-700 hover:bg-slate-200">Cancel</Link><button type="submit" className="flex items-center gap-2 rounded-full bg-emerald-600 px-9 py-3 font-semibold text-white hover:bg-emerald-700"><Save size={18} /> Save estimate</button></div>
       </div>
     </form>
   );

@@ -42,7 +42,7 @@ export default async function EditEstimatePage({
     supabase
       .from("business_profiles")
       .select(
-        "company_name, phone, email, license_number, logo_url, default_terms",
+        "company_name, phone, email, license_number, logo_url, default_terms, payment_schedule_tiers",
       )
       .maybeSingle(),
   ]);
@@ -71,6 +71,7 @@ export default async function EditEstimatePage({
       <EstimateForm
         customers={customers ?? []}
         business={business}
+        paymentScheduleTiers={business?.payment_schedule_tiers ?? []}
         initialEstimate={{
           id: estimate.id,
           estimateNumber: estimate.estimate_number,
@@ -82,6 +83,18 @@ export default async function EditEstimatePage({
           terms: estimate.terms ?? "",
           showQuantity: estimate.show_quantity,
           showRate: estimate.show_rate,
+          poNumber: estimate.po_number ?? "",
+          markupType: estimate.markup_type ?? "percentage",
+          markupValue: Number(estimate.markup_value ?? 0),
+          discountType: estimate.discount_type ?? "percentage",
+          discountValue: Number(estimate.discount_value ?? 0),
+          paymentSchedule: Array.isArray(estimate.payment_schedule)
+            ? estimate.payment_schedule.map((s: { title: string; percentage: number }, i: number) => ({
+                id: `existing-${i}`,
+                title: s.title,
+                percentage: s.percentage,
+              }))
+            : [],
           items: (estimate.estimate_items ?? []).map(
             (item) => ({
               id: item.id,

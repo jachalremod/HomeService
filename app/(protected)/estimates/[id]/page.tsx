@@ -413,14 +413,28 @@ export default async function EstimatePage({
                 </dd>
               </div>
 
-              <div className="flex justify-between rounded-xl bg-blue-50 p-4 text-xl text-blue-950">
-                <dt className="font-bold">Estimate total</dt>
-                <dd className="font-bold">
-                  {money(Number(estimate.total))}
-                </dd>
-              </div>
-            </dl>
-          </section>
+                              <div className="flex justify-between">
+                  <dt className="font-bold">Estimate total</dt>
+                  <dd className="font-bold">
+                    {money(Number(estimate.total))}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+
+            {Array.isArray(estimate.payment_schedule) && estimate.payment_schedule.length > 0 ? (
+              <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="text-sm font-bold text-slate-950">Payment schedule</h2>
+                <div className="mt-3 divide-y divide-slate-100">
+                  {estimate.payment_schedule.map((schedule: { title: string; percentage: number }, index: number) => (
+                    <div key={index} className="flex items-center justify-between py-2">
+                      <p className="text-sm text-slate-700">{schedule.title} <span className="text-slate-400">({schedule.percentage}%)</span></p>
+                      <p className="text-sm font-bold text-slate-950">{money(Number(estimate.total) * (schedule.percentage / 100))}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
           {estimate.notes || terms ? (
             <section className="mt-8 grid gap-6 border-t border-slate-200 pt-8 md:grid-cols-2">

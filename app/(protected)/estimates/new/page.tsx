@@ -13,17 +13,17 @@ export default async function NewEstimatePage({
   const { message } = await searchParams;
   const supabase = await createClient();
 
-    const [{ data: customers }, { data: business }, savedSignature] = await Promise.all([
+  const [{ data: customers }, { data: business }, savedSignature] = await Promise.all([
     supabase
       .from("customers")
       .select(
         "id, first_name, last_name, email, project_address, city, state, postal_code",
       )
       .order("last_name"),
-        supabase
+    supabase
       .from("business_profiles")
       .select(
-        "company_name, phone, email, license_number, logo_url, default_terms, estimate_contract_template, default_payment_schedule",
+        "company_name, phone, email, license_number, logo_url, default_terms, estimate_contract_template, payment_schedule_tiers",
       )
       .maybeSingle(),
     getUserSignature(),
@@ -50,7 +50,12 @@ export default async function NewEstimatePage({
           </Link>
         </div>
       ) : (
-        <EstimateForm customers={customers} business={business} savedSignature={savedSignature} defaultPaymentSchedule={business?.default_payment_schedule ?? []} />
+        <EstimateForm
+          customers={customers}
+          business={business}
+          savedSignature={savedSignature}
+          paymentScheduleTiers={business?.payment_schedule_tiers ?? []}
+        />
       )}
     </>
   );
