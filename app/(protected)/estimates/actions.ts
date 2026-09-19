@@ -24,6 +24,7 @@ const estimateSchema = z.object({
   expiresAt: z.union([z.literal(""), z.iso.date()]),
   showQuantity: z.boolean(),
   showRate: z.boolean(),
+  companySignature: z.string().trim(),
 });const itemSchema = z.object({
   title: z.string().trim().min(1),
   description: z.string().trim().min(1),
@@ -32,7 +33,7 @@ const estimateSchema = z.object({
 });
 
 export async function createEstimate(formData: FormData) {
-    const estimateResult = estimateSchema.safeParse({
+      const estimateResult = estimateSchema.safeParse({
     customerId: formData.get("customerId"),
     title: formData.get("title"),
     poNumber: formData.get("poNumber"),
@@ -46,6 +47,7 @@ export async function createEstimate(formData: FormData) {
     expiresAt: formData.get("expiresAt"),
     showQuantity: formData.get("showQuantity") === "on",
     showRate: formData.get("showRate") === "on",
+    companySignature: formData.get("companySignature"),
   });
 
     let rawItems: unknown;
@@ -58,23 +60,24 @@ export async function createEstimate(formData: FormData) {
     redirect("/estimates/new?message=The+estimate+items+are+invalid");
   }
 
-  const itemsResult = z.array(itemSchema).min(1).safeParse(rawItems);
+    const itemsResult = z.array(itemSchema).min(1).safeParse(rawItems);
   const scheduleResult = z
     .array(paymentScheduleItemSchema)
-    .min(1)
     .safeParse(rawSchedule);
 
   if (!estimateResult.success || !itemsResult.success || !scheduleResult.success) {
     redirect("/estimates/new?message=Complete+all+required+estimate+fields");
   }
 
-  const schedulePercentageTotal = scheduleResult.data.reduce(
-    (sum, s) => sum + s.percentage,
-    0,
-  );
+  if (scheduleResult.data.length > 0) {
+    const schedulePercentageTotal = scheduleResult.data.reduce(
+      (sum, s) => sum + s.percentage,
+      0,
+    );
 
-  if (Math.abs(schedulePercentageTotal - 100) > 0.001) {
-    redirect("/estimates/new?message=Payment+schedule+must+equal+100+percent");
+    if (Math.abs(schedulePercentageTotal - 100) > 0.001) {
+      redirect("/estimates/new?message=Payment+schedule+must+equal+100+percent");
+    }
   }
   const supabase = await createClient();
   const {
@@ -155,7 +158,9 @@ export async function createEstimate(formData: FormData) {
       expires_at: estimateResult.data.expiresAt || null,
       show_quantity: estimateResult.data.showQuantity,
       show_rate: estimateResult.data.showRate,
-      payment_schedule: scheduleResult.data,
+            payment_schedule: scheduleResult.data,
+      company_signature: estimateResult.data.companySignature || null,
+      company_signed_at: estimateResult.data.companySignature ? new Date().toISOString() : null,
       status: "draft",
     })
     .select("id")
@@ -304,7 +309,7 @@ export async function updateEstimate(
 ) {
   const idResult = z.uuid().safeParse(estimateId);
 
-    const estimateResult = estimateSchema.safeParse({
+      const estimateResult = estimateSchema.safeParse({
     customerId: formData.get("customerId"),
     title: formData.get("title"),
     poNumber: formData.get("poNumber"),
@@ -318,6 +323,7 @@ export async function updateEstimate(
     expiresAt: formData.get("expiresAt"),
     showQuantity: formData.get("showQuantity") === "on",
     showRate: formData.get("showRate") === "on",
+    companySignature: formData.get("companySignature"),
   });
 
     let rawItems: unknown;
@@ -336,13 +342,12 @@ export async function updateEstimate(
     );
   }
 
-  const itemsResult = z
+    const itemsResult = z
     .array(itemSchema)
     .min(1)
     .safeParse(rawItems);
   const scheduleResult = z
     .array(paymentScheduleItemSchema)
-    .min(1)
     .safeParse(rawSchedule);
 
   if (
@@ -356,15 +361,17 @@ export async function updateEstimate(
     );
   }
 
-  const schedulePercentageTotal = scheduleResult.data.reduce(
-    (sum, s) => sum + s.percentage,
-    0,
-  );
-
-  if (Math.abs(schedulePercentageTotal - 100) > 0.001) {
-    redirect(
-      `/estimates/${estimateId}/edit?message=Payment+schedule+must+equal+100+percent`,
+  if (scheduleResult.data.length > 0) {
+    const schedulePercentageTotal = scheduleResult.data.reduce(
+      (sum, s) => sum + s.percentage,
+      0,
     );
+
+    if (Math.abs(schedulePercentageTotal - 100) > 0.001) {
+      redirect(
+        `/estimates/${estimateId}/edit?message=Payment+schedule+must+equal+100+percent`,
+      );
+    }
   }
 
   const supabase = await createClient();
@@ -437,6 +444,8 @@ export async function updateEstimate(
         show_quantity: estimateResult.data.showQuantity,
         show_rate: estimateResult.data.showRate,
         payment_schedule: scheduleResult.data,
+        company_signature: estimateResult.data.companySignature || null,
+        company_signed_at: estimateResult.data.companySignature ? new Date().toISOString() : null,
         status: "draft",
       })
       .eq("id", idResult.data)

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 
 const invoiceSchema = z.object({
   estimateId: z.uuid(),
+  companySignature: z.string().trim().min(1),
   schedules: z.array(
     z.object({
       title: z.string().trim().min(1),
@@ -15,7 +16,6 @@ const invoiceSchema = z.object({
     }),
   ).min(1),
 });
-
 export async function createInvoice(formData: FormData) {
   let schedules: unknown;
 
@@ -25,13 +25,14 @@ export async function createInvoice(formData: FormData) {
     redirect("/invoices?message=Invalid+payment+schedule");
   }
 
-  const result = invoiceSchema.safeParse({
+    const result = invoiceSchema.safeParse({
     estimateId: formData.get("estimateId"),
+    companySignature: formData.get("companySignature"),
     schedules,
   });
 
   if (!result.success) {
-    redirect("/invoices?message=Complete+the+payment+schedule");
+    redirect("/invoices?message=Sign+and+complete+the+payment+schedule");
   }
 
   const percentageTotal = result.data.schedules.reduce(
@@ -92,7 +93,15 @@ export async function createInvoice(formData: FormData) {
     );
   }
 
-  const invoiceNumber = String(nextInvoiceNumber);
+    const invoiceNumber = String(nextInvoiceNumber);
+
+  await supabase
+    .from("estimates")
+    .update({
+      company_signature: result.data.companySignature,
+      company_signed_at: new Date().toISOString(),
+    })
+    .eq("id", estimate.id);
 
   const { data: invoice, error: invoiceError } = await supabase
     .from("invoices")

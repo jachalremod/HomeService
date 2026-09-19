@@ -435,18 +435,54 @@ export default async function EstimatePage({
                 </div>
               ) : null}
 
-              {terms ? (
-                <div>
-                  <h2 className="text-sm font-bold text-slate-950">
-                    Terms and conditions
-                  </h2>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                    {terms}
-                  </p>
-                </div>
-              ) : null}
+                              {terms ? (
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-950">
+                      Terms and conditions
+                    </h2>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                      {terms}
+                    </p>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
+            {estimate.customer_signature || estimate.company_signature ? (
+              <section className="mt-8 grid gap-6 border-t border-slate-200 pt-8 sm:grid-cols-2">
+                {estimate.customer_signature ? (
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-950">Customer signature</h2>
+                    <img src={estimate.customer_signature} alt="Customer signature" className="mt-3 h-16 w-auto" />
+                    <p className="mt-2 text-xs text-slate-500">
+                      Signed by {estimate.customer_signed_name} on{" "}
+                      {new Date(estimate.customer_signed_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-950">Customer signature</h2>
+                    <p className="mt-2 text-xs text-slate-400">Not yet signed</p>
+                  </div>
+                )}
+
+                {estimate.company_signature ? (
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-950">Contractor signature</h2>
+                    <img src={estimate.company_signature} alt="Contractor signature" className="mt-3 h-16 w-auto" />
+                    <p className="mt-2 text-xs text-slate-500">
+                      Signed on{" "}
+                      {new Date(estimate.company_signed_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-950">Contractor signature</h2>
+                    <p className="mt-2 text-xs text-slate-400">Signed when invoice is generated</p>
+                  </div>
+                )}
             </section>
-          ) : null}
+            ) : null}
 
           {estimate.status === "approved" ? (
             <section className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-6">

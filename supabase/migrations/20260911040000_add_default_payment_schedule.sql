@@ -1,0 +1,2 @@
+alter table public.business_profiles
+add column default_payment_schedule jsonb;

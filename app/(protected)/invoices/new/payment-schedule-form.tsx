@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Plus, ReceiptText, Trash2 } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Plus, ReceiptText, RotateCcw, Trash2 } from "lucide-react";
 import { createInvoice } from "../actions";
 
 type Schedule = {
@@ -54,6 +54,11 @@ export default function PaymentScheduleForm({
     },
   ]);
 
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasSignature, setHasSignature] = useState(false);
+  const [signatureData, setSignatureData] = useState("");
+
   const percentageTotal = useMemo(
     () =>
       schedules.reduce(
@@ -100,6 +105,57 @@ export default function PaymentScheduleForm({
     );
   }
 
+  function getPos(event: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * (canvas.width / rect.width),
+      y: (event.clientY - rect.top) * (canvas.height / rect.height),
+    };
+  }
+
+  function startDrawing(event: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    setIsDrawing(true);
+    const { x, y } = getPos(event);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  }
+
+  function draw(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    const { x, y } = getPos(event);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    setHasSignature(true);
+  }
+
+  function stopDrawing() {
+    setIsDrawing(false);
+    const canvas = canvasRef.current;
+    if (canvas && hasSignature) {
+      setSignatureData(canvas.toDataURL("image/png"));
+    }
+  }
+
+  function clearSignature() {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasSignature(false);
+    setSignatureData("");
+  }
+
   const scheduleIsValid = Math.abs(percentageTotal - 100) < 0.001;
 
   return (
@@ -116,6 +172,7 @@ export default function PaymentScheduleForm({
           })),
         )}
       />
+      <input type="hidden" name="companySignature" value={signatureData} />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -214,6 +271,38 @@ export default function PaymentScheduleForm({
         </div>
       </section>
 
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-bold
+ text-slate-950">Your signature</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Signing here finalizes this estimate as a contract alongside the customer's signature.
+        </p>
+
+        <div className="mt-4">
+          <canvas
+            ref={canvasRef}
+            width={600}
+            height={150}
+            onPointerDown={startDrawing}
+            onPointerMove={draw}
+            onPointerUp={stopDrawing}
+            onPointerLeave={stopDrawing}
+            className="w-full touch-none rounded-lg border-2 border-dashed border-slate-300 bg-slate-50"
+          />
+          <div className="mt-2 flex items-center justify-between">
+            <p className="text-xs text-slate-400">Draw your signature above</p>
+            <button
+              type="button"
+              onClick={clearSignature}
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700"
+            >
+              <RotateCcw size={13} />
+              Clear
+            </button>
+          </div>
+        </div>
+      </section>
+
       <section className="flex flex-col justify-between gap-4 rounded-2xl bg-slate-950 p-6 text-white sm:flex-row sm:items-center">
         <div>
           <p className="text-sm text-slate-400">Invoice total</p>
@@ -221,11 +310,11 @@ export default function PaymentScheduleForm({
         </div>
 
         <button
-          disabled={!scheduleIsValid}
+          disabled={!scheduleIsValid || !hasSignature}
           className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <ReceiptText size={19} />
-          Create one invoice
+          Sign & create invoice
         </button>
       </section>
     </form>

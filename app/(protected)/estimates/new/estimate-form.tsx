@@ -1,16 +1,18 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { Building2, ChevronDown, ChevronUp, Plus, Save, Trash2, UserRoundPlus } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Building2, ChevronDown, ChevronUp, Plus, RotateCcw, Save, Trash2, UserRoundPlus } from "lucide-react";
 import { createEstimate, updateEstimate } from "../actions";
+import { saveUserSignature } from "@/lib/user-signature-actions";
 
 type CustomerOption = { id: string; first_name: string; last_name: string; email: string | null; project_address: string | null; city: string | null; state: string | null; postal_code: string | null };
 type BusinessProfile = { company_name: string; phone: string | null; email: string | null; license_number: string | null; logo_url: string | null; default_terms: string | null; estimate_contract_template?: string | null };
 type EstimateItem = { id: string; title: string; description: string; quantity: number; unitPrice: number };
 type PaymentScheduleItem = { id: string; title: string; percentage: number | "" };
 type InitialEstimate = { id: string; estimateNumber: string; customerId: string; title: string; expiresAt: string; taxRate: number; notes: string; terms: string; showQuantity?: boolean; showRate?: boolean; items: EstimateItem[]; paymentSchedule?: PaymentScheduleItem[]; poNumber?: string; markupType?: "percentage" | "fixed"; markupValue?: number; discountType?: "percentage" | "fixed"; discountValue?: number };
-type EstimateFormProps = { customers: CustomerOption[]; business: BusinessProfile | null; initialEstimate?: InitialEstimate };
+type SavedSignature = { signature_data: string; signature_mode: "draw" | "type"; typed_name: string | null } | null;
+type EstimateFormProps = { customers: CustomerOption[]; business: BusinessProfile | null; initialEstimate?: InitialEstimate; savedSignature?: SavedSignature; defaultPaymentSchedule?: Array<{ title: string; percentage: number }> };
 
 function money(value: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
@@ -20,7 +22,7 @@ function today() {
   return new Intl.DateTimeFormat("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }).format(new Date());
 }
 
-export default function EstimateForm({ customers, business, initialEstimate }: EstimateFormProps) {
+export default function EstimateForm({ customers, business, initialEstimate, savedSignature, defaultPaymentSchedule }: EstimateFormProps) {
   const [customerId, setCustomerId] = useState(initialEstimate?.customerId ?? "");
   const [title, setTitle] = useState(initialEstimate?.title ?? "");
   const [expiresAt, setExpiresAt] = useState(initialEstimate?.expiresAt ?? "");
@@ -44,10 +46,19 @@ export default function EstimateForm({ customers, business, initialEstimate }: E
   const [discountValue, setDiscountValue] = useState(initialEstimate?.discountValue ?? 0);
   const [markupExpanded, setMarkupExpanded] = useState(false);
   const [discountExpanded, setDiscountExpanded] = useState(false);
-  const [paymentSchedule, setPaymentSchedule] = useState<PaymentScheduleItem[]>(
-    initialEstimate?.paymentSchedule?.length
-      ? initialEstimate.paymentSchedule
-      : [{ id: "payment-1", title: "1st Payment", percentage: "" }],
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+
+    const [signatureData, setSignatureData] = useState(savedSignature?.signature_data ?? "");
+  const [signatureMode, setSignatureMode] = useState<"draw" | "type">(savedSignature?.signature_mode ?? "draw");
+  const [typedSignature, setTypedSignature] = useState(savedSignature?.typed_name ?? "");
+    const [hasSavedSignature, setHasSavedSignature] = useState(!!savedSignature);
+  const [hasSignature, setHasSignatureState] = useState(!!savedSignature);
+      const [paymentSchedule, setPaymentSchedule] = useState<PaymentScheduleItem[]>(
+    initialEstimate?.paymentSchedule ??
+      (defaultPaymentSchedule?.length
+        ? defaultPaymentSchedule.map((s, i) => ({ id: `default-${i}`, title: s.title, percentage: s.percentage }))
+        : []),
   );
 
   const selectedCustomer = customers.find((customer) => customer.id === customerId);
@@ -91,6 +102,81 @@ export default function EstimateForm({ customers, business, initialEstimate }: E
     setPaymentSchedule((current) => current.length === 1 ? current : current.filter((s) => s.id !== id));
   }
 
+  function getPos(event: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * (canvas.width / rect.width),
+      y: (event.clientY - rect.top) * (canvas.height / rect.height),
+    };
+  }
+
+  function startDrawing(event: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    setIsDrawing(true);
+    const { x, y } = getPos(event);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  }
+
+  function draw(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    const { x, y } = getPos(event);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    setHasSignatureState(true);
+  }
+
+    function stopDrawing() {
+    setIsDrawing(false);
+    const canvas = canvasRef.current;
+    if (canvas && hasSignature) {
+      const dataUrl = canvas.toDataURL("image/png");
+      setSignatureData(dataUrl);
+      saveUserSignature(dataUrl, "draw", "");
+    }
+  }
+
+  function clearSignature() {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasSignatureState(false);
+    setSignatureData("");
+  }
+
+    async function applyTypedSignature(name: string) {
+    setTypedSignature(name);
+    if (!name.trim()) {
+      setSignatureData("");
+      return;
+    }
+    try {
+      await document.fonts.load("56px var(--font-signature)");
+    } catch {}
+    const canvas = document.createElement("canvas");
+    canvas.width = 600;
+    canvas.height = 150;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+        ctx.fillStyle = "#0f172a";
+    ctx.font = "80px var(--font-signature)";
+    ctx.textBaseline = "middle";
+    ctx.fillText(name, 20, 85);
+    const dataUrl = canvas.toDataURL("image/png");
+    setSignatureData(dataUrl);
+    saveUserSignature(dataUrl, "type", name);
+  }
   const inputClass = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100";
 
   return (
@@ -102,6 +188,7 @@ export default function EstimateForm({ customers, business, initialEstimate }: E
       <input type="hidden" name="markupValue" value={markupValue} />
       <input type="hidden" name="discountType" value={discountType} />
       <input type="hidden" name="discountValue" value={discountValue} />
+      <input type="hidden" name="companySignature" value={signatureData} />
       <header className="sticky top-0 z-30 flex flex-col gap-4 border-b border-slate-200 bg-white/95 px-5 py-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between lg:px-8">
         <div>
           <p className="text-sm font-semibold text-slate-500">{initialEstimate ? "Edit estimate" : "New estimate"}</p>
@@ -344,7 +431,60 @@ export default function EstimateForm({ customers, business, initialEstimate }: E
           </div>
         ) : null}
 
-        <div className="flex justify-end gap-3 pb-8"><Link href={cancelHref} className="rounded-full bg-slate-100 px-8 py-3 font-semibold text-slate-700 hover:bg-slate-200">Cancel</Link><button type="submit" className="flex items-center gap-2 rounded-full bg-emerald-600 px-9 py-3 font-semibold text-white hover:bg-emerald-700"><Save size={18} /> Save estimate</button></div>
+                        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+          <h2 className="text-lg font-bold text-slate-950">Your signature</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            {hasSignature && hasSavedSignature ? "Using your saved signature." : "Sign now so this estimate is ready for the customer to counter-sign."}
+          </p>
+
+                    <div className="mt-4 flex items-center gap-2">
+            <button type="button" onClick={() => { setSignatureMode("draw"); setSignatureData(""); setHasSignatureState(false); setHasSavedSignature(false); }} className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${signatureMode === "draw" ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+              Draw
+            </button>
+            <button type="button" onClick={() => { setSignatureMode("type"); setSignatureData(""); setTypedSignature(""); setHasSavedSignature(false); }} className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${signatureMode === "type" ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+              Type
+            </button>
+
+            {hasSignature && hasSavedSignature ? (
+              <span className="ml-2 text-xs font-semibold text-emerald-600">✓ Loaded from your saved signature</span>
+            ) : null}
+          </div>
+
+          {signatureMode === "draw" ? (
+            <div className="mt-4">
+              <canvas
+                ref={canvasRef}
+                width={600}
+                height={150}
+                onPointerDown={startDrawing}
+                onPointerMove={draw}
+                onPointerUp={stopDrawing}
+                onPointerLeave={stopDrawing}
+                className="w-full touch-none rounded-lg border-2 border-dashed border-slate-300 bg-slate-50"
+              />
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-xs text-slate-400">Draw your signature above</p>
+                <button type="button" onClick={clearSignature} className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700">
+                  <RotateCcw size={13} />
+                  Clear
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4">
+              <input
+                value={typedSignature}
+                onChange={(event) => applyTypedSignature(event.target.value)}
+                placeholder="Type your full name"
+                className={`${inputClass} py-4 text-3xl`}
+                style={{ fontFamily: "var(--font-signature)" }}
+              />
+              <p className="mt-2 text-xs text-slate-400">This will be used as your signature</p>
+            </div>
+          )}
+        </section>
+
+                <div className="flex justify-end gap-3 pb-8"><Link href={cancelHref} className="rounded-full bg-slate-100 px-8 py-3 font-semibold text-slate-700 hover:bg-slate-200">Cancel</Link><button type="submit" className="flex items-center gap-2 rounded-full bg-emerald-600 px-9 py-3 font-semibold text-white hover:bg-emerald-700"><Save size={18} /> Save estimate</button></div>
       </div>
     </form>
   );

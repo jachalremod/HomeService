@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, FileText, Save } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { saveDocumentSettings } from "./actions";
+import DefaultPaymentScheduleEditor from "./default-payment-schedule-editor";
 
 type DocumentSettingsPageProps = {
   searchParams: Promise<{ message?: string }>;
@@ -13,10 +14,10 @@ export default async function DocumentSettingsPage({
   const { message } = await searchParams;
   const supabase = await createClient();
 
-  const { data: profile } = await supabase
+    const { data: profile } = await supabase
     .from("business_profiles")
     .select(
-      "estimate_contract_template, default_terms, payment_instructions",
+      "estimate_contract_template, default_terms, payment_instructions, default_payment_schedule",
     )
     .maybeSingle();
 
@@ -118,6 +119,19 @@ export default async function DocumentSettingsPage({
             defaultValue={profile?.payment_instructions ?? ""}
             placeholder="Explain how and where customers should submit payment"
             className={`mt-2 resize-y whitespace-pre-wrap ${inputClass}`}
+          />
+        </section>
+
+                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-950">
+            Default payment schedule
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Pre-fill new estimates with a standard payment schedule. You can still adjust it per estimate.
+          </p>
+
+          <DefaultPaymentScheduleEditor
+            initialSchedule={profile?.default_payment_schedule ?? []}
           />
         </section>
 

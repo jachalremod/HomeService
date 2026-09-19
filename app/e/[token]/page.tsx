@@ -1,7 +1,9 @@
-/* eslint-disable @next/next/no-img-element */
+﻿/* eslint-disable @next/next/no-img-element */
 import { notFound } from "next/navigation";
 import { Building2 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { declineEstimatePublic } from "./actions";
+import SignaturePad from "./signature-pad";
 
 function money(value: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
@@ -12,8 +14,15 @@ function date(value: string | null) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(`${value}T00:00:00`));
 }
 
-export default async function PublicEstimatePage({ params }: { params: Promise<{ token: string }> }) {
+export default async function PublicEstimatePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ message?: string }>;
+}) {
   const { token } = await params;
+  const { message } = await searchParams;
   const admin = createAdminClient();
   const { data: estimate } = await admin.from("estimates")
     .select("*, customers(*), estimate_items(*)")
@@ -28,6 +37,12 @@ export default async function PublicEstimatePage({ params }: { params: Promise<{
     <main className="min-h-screen bg-slate-100 px-4 py-8 sm:px-6 print:bg-white print:p-0">
       <article className="mx-auto max-w-4xl bg-white p-8 shadow-lg sm:p-12 print:max-w-none print:shadow-none">
         <p className="text-center text-xs font-bold uppercase tracking-[0.3em] text-slate-400">Estimate</p>
+
+        {message ? (
+          <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-center text-sm text-blue-900 print:hidden">
+            {message}
+          </div>
+        ) : null}
 
         <header className="mt-6 grid gap-8 sm:grid-cols-2">
           <div className="flex items-start gap-3">
@@ -121,6 +136,36 @@ export default async function PublicEstimatePage({ params }: { params: Promise<{
             <h3 className="text-sm font-bold text-slate-900">Contract and terms</h3>
             <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{terms}</p>
           </section>
+        ) : null}
+
+        {estimate.status === "draft" || estimate.status === "sent" ? (
+          <div className="print:hidden">
+            <SignaturePad token={token} />
+
+            <form action={declineEstimatePublic} className="mt-3">
+              <input type="hidden" name="token" value={token} />
+              <button type="submit" className="w-full text-center text-sm font-semibold text-slate-500 hover:text-red-600 hover:underline">
+                Decline this estimate
+              </button>
+            </form>
+          </div>
+        ) : null}
+
+        {estimate.status === "approved" && estimate.customer_signature ? (
+          <div className="mt-8 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+            <p className="text-sm font-bold text-emerald-900">Approved and signed</p>
+            <img src={estimate.customer_signature} alt="Customer signature" className="mt-3 h-20 w-auto" />
+            <p className="mt-2 text-xs text-emerald-700">
+              Signed by {estimate.customer_signed_name} on{" "}
+              {new Date(estimate.customer_signed_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+            </p>
+          </div>
+        ) : null}
+
+        {estimate.status === "declined" ? (
+          <div className="mt-8 rounded-xl border border-red-200 bg-red-50 p-5 text-center">
+            <p className="text-sm font-bold text-red-900">This estimate has been declined.</p>
+          </div>
         ) : null}
 
         <div className="mt-10 print:hidden">
