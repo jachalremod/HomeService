@@ -10,6 +10,7 @@ const documentSettingsSchema = z.object({
   defaultTerms: z.string().trim(),
   paymentInstructions: z.string().trim(),
   paymentScheduleTiers: z.string().trim(),
+  autoGenerateInvoiceOnApproval: z.boolean(),
 });
 
 export async function saveDocumentSettings(formData: FormData) {
@@ -18,6 +19,7 @@ export async function saveDocumentSettings(formData: FormData) {
     defaultTerms: formData.get("defaultTerms"),
     paymentInstructions: formData.get("paymentInstructions"),
     paymentScheduleTiers: formData.get("paymentScheduleTiers"),
+    autoGenerateInvoiceOnApproval: formData.get("autoGenerateInvoiceOnApproval") === "on",
   });
 
   if (!result.success) {
@@ -49,6 +51,7 @@ export async function saveDocumentSettings(formData: FormData) {
       payment_instructions:
         result.data.paymentInstructions || null,
       payment_schedule_tiers: Array.isArray(parsedTiers) && parsedTiers.length > 0 ? parsedTiers : null,
+      auto_generate_invoice_on_approval: result.data.autoGenerateInvoiceOnApproval,
     })
     .eq("organization_id", organizationId);
 

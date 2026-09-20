@@ -1,11 +1,9 @@
-import { notFound } from "next/navigation";
+﻿import { notFound } from "next/navigation";
 import {
   Building2,
   CheckCircle2,
   CircleDollarSign,
   CreditCard,
-  Mail,
-  MapPin,
 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { openCustomerCheckout } from "./actions";
@@ -25,6 +23,11 @@ function money(value: number) {
     style: "currency",
     currency: "USD",
   }).format(value);
+}
+
+function date(value: string | null) {
+  if (!value) return "Not specified";
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 }
 
 export default async function CustomerPortalPage({
@@ -77,207 +80,108 @@ export default async function CustomerPortalPage({
   );
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-8 sm:px-6">
-      <div className="mx-auto max-w-5xl">
+    <main className="min-h-screen bg-slate-100 px-4 py-8 sm:px-6 print:bg-white print:p-0">
+      <div className="mx-auto max-w-4xl">
         {payment === "success" ? (
-          <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900">
+          <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900 print:hidden">
             <p className="flex items-center gap-2 font-bold">
               <CheckCircle2 size={20} />
               Payment submitted successfully
-            </p>
-            <p className="mt-1 text-sm">
-              The invoice status will update automatically.
             </p>
           </div>
         ) : null}
 
         {payment === "cancelled" ? (
-          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-900 print:hidden">
             No payment was processed. You can try again when ready.
           </div>
         ) : null}
 
         {message ? (
-          <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-blue-900">
+          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-5 text-blue-900 print:hidden">
             {message}
           </div>
         ) : null}
 
-        <div className="mb-4 flex justify-end">
-          <a
-            href={`/api/portal/${token}/estimate-pdf`}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700"
-          >
+                <div className="mb-4 flex justify-end print:hidden">
+          <a href={`/api/portal/${token}/estimate-pdf`} target="_blank" rel="noreferrer" className="rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700">
             Open/Print PDF
           </a>
         </div>
 
-        <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
-          <header className="grid gap-8 bg-slate-950 p-7 text-white sm:p-10 md:grid-cols-2">
-            <div>
-              <div className="flex items-start gap-4">
-                {business?.logo_url ? (
-                  <div
-                    role="img"
-                    aria-label={`${business.company_name} logo`}
-                    className="size-16 shrink-0 rounded-xl bg-white bg-contain bg-center bg-no-repeat"
-                    style={{
-                      backgroundImage: `url("${business.logo_url}")`,
-                    }}
-                  />
-                ) : (
-                  <div className="flex size-12 items-center justify-center rounded-xl bg-blue-600">
-                    <Building2 size={25} />
-                  </div>
-                )}
+        <article className="mx-auto max-w-4xl bg-white p-8 shadow-lg sm:p-12 print:max-w-none print:shadow-none">
+          <p className="text-center text-xs font-bold uppercase tracking-[0.3em] text-slate-400">Invoice</p>
 
-                <div>
-                  <p className="text-xl font-bold">
-                    {business?.company_name ?? "ServiceAxiom Contractor"}
-                  </p>
-
-                  {business?.phone ? (
-                    <p className="mt-2 text-sm text-slate-400">
-                      {business.phone}
-                    </p>
-                  ) : null}
-
-                  {business?.email ? (
-                    <p className="text-sm text-slate-400">
-                      {business.email}
-                    </p>
-                  ) : null}
-
-                  {business?.license_number ? (
-                    <p className="mt-1 text-xs text-slate-400">
-                      License: {business.license_number}
-                    </p>
-                  ) : null}
+          <header className="mt-6 grid gap-8 sm:grid-cols-2">
+            <div className="flex items-start gap-3">
+              {business?.logo_url ? (
+                <div
+                  role="img"
+                  aria-label={`${business.company_name} logo`}
+                  className="size-14 shrink-0 bg-contain bg-center bg-no-repeat"
+                  style={{ backgroundImage: `url("${business.logo_url}")` }}
+                />
+              ) : (
+                <div className="flex size-14 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
+                  <Building2 size={24} />
                 </div>
+              )}
+              <div className="text-xs leading-5 text-slate-500">
+                <p className="text-sm font-bold text-slate-900">{business?.company_name ?? "ServiceAxiom Contractor"}</p>
+                {business?.phone ? <p>Phone: {business.phone}</p> : null}
+                {business?.email ? <p>Email: {business.email}</p> : null}
+                {business?.license_number ? <p>License #{business.license_number}</p> : null}
               </div>
-
-              <h1 className="mt-10 text-4xl font-bold">INVOICE</h1>
             </div>
 
-            <dl className="space-y-3 md:text-right">
-              <div>
-                <dt className="text-sm text-slate-400">Invoice</dt>
-                <dd className="font-bold">{invoice.invoice_number}</dd>
+            <div className="text-xs leading-5 text-slate-500 sm:text-right">
+              <p className="font-semibold text-slate-700">Bill To</p>
+              <p className="text-sm font-bold text-slate-900">{customer?.first_name} {customer?.last_name}</p>
+              {customer?.project_address ? (
+                <p>{customer.project_address}{customer.city ? `, ${customer.city}` : ""}{customer.state ? `, ${customer.state}` : ""}</p>
+              ) : null}
+              <div className="mt-3">
+                <p>Invoice #: <span className="font-semibold text-slate-700">{invoice.invoice_number}</span></p>
+                <p>Date: <span className="font-semibold text-slate-700">{date(invoice.created_at)}</span></p>
+                {estimate?.title ? <p>Project: <span className="font-semibold text-slate-700">{estimate.title}</span></p> : null}
               </div>
-
-              <div>
-                <dt className="text-sm text-slate-400">Project</dt>
-                <dd className="font-semibold">{estimate?.title}</dd>
-              </div>
-
-              <div>
-                <dt className="text-sm text-slate-400">Status</dt>
-                <dd className="font-bold capitalize text-blue-300">
-                  {invoice.status.replace("_", " ")}
-                </dd>
-              </div>
-            </dl>
+            </div>
           </header>
 
-          <div className="p-6 sm:p-10">
-            <section className="grid gap-6 border-b border-slate-200 pb-8 md:grid-cols-2">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  Bill to
-                </p>
-
-                <p className="mt-3 text-lg font-bold text-slate-950">
-                  {customer?.first_name} {customer?.last_name}
-                </p>
-
-                {customer?.email ? (
-                  <p className="mt-2 flex items-center gap-2 text-sm text-slate-600">
-                    <Mail size={16} />
-                    {customer.email}
-                  </p>
-                ) : null}
-
-                {customer?.project_address ? (
-                  <p className="mt-2 flex items-start gap-2 text-sm text-slate-600">
-                    <MapPin className="mt-0.5 shrink-0" size={16} />
-                    <span>
-                      {customer.project_address}
-                      {customer.city ? `, ${customer.city}` : ""}
-                      {customer.state ? `, ${customer.state}` : ""}
-                      {customer.postal_code
-                        ? ` ${customer.postal_code}`
-                        : ""}
-                    </span>
-                  </p>
-                ) : null}
-              </div>
-            </section>
-
-            <section className="overflow-x-auto py-8">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b-2 border-slate-900 text-left text-xs uppercase tracking-wide text-slate-500">
-                    <th className="pb-3">Line item / scope of work</th>
-                    <th className="pb-3 text-right">Qty</th>
-                    <th className="pb-3 text-right">Rate</th>
-                    <th className="pb-3 text-right">Amount</th>
+          <div className="mt-8 overflow-x-auto">
+            <table className="w-full table-fixed">
+              <thead>
+                <tr className="border-b border-slate-900 text-left text-xs font-bold uppercase text-slate-500">
+                  <th className="w-auto pb-2">Description</th>
+                  <th className="w-20 pb-2 text-right">Qty</th>
+                  <th className="w-28 pb-2 text-right">Rate</th>
+                  <th className="w-28 pb-2 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr key={item.id} className="border-b border-slate-100 align-top">
+                    <td className="break-words py-4 pr-4">
+                      <p className="font-bold text-slate-950">{item.title}</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-slate-600">{item.description}</p>
+                    </td>
+                    <td className="py-4 text-right text-slate-600">{Number(item.quantity)}</td>
+                    <td className="py-4 text-right text-slate-600">{money(Number(item.unit_price))}</td>
+                    <td className="py-4 text-right font-semibold">{money(Number(item.amount))}</td>
                   </tr>
-                </thead>
-
-                <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id} className="border-b border-slate-100">
-                      <td className="py-4">
-                        <p className="font-bold text-slate-950">
-                          {item.title}
-                        </p>
-                        <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                          {item.description}
-                        </p>
-                      </td>
-                      <td className="py-4 text-right text-slate-600">
-                        {Number(item.quantity)}
-                      </td>
-                      <td className="py-4 text-right text-slate-600">
-                        {money(Number(item.unit_price))}
-                      </td>
-                      <td className="py-4 text-right font-semibold text-slate-950">
-                        {money(Number(item.amount))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-
-            <section className="ml-auto max-w-md">
-              <dl className="space-y-3">
-                <div className="flex justify-between">
-                  <dt className="text-slate-600">Invoice total</dt>
-                  <dd className="font-bold">
-                    {money(Number(invoice.total))}
-                  </dd>
-                </div>
-
-                <div className="flex justify-between text-emerald-700">
-                  <dt>Payments received</dt>
-                  <dd className="font-bold">-{money(totalPaid)}</dd>
-                </div>
-
-                <div className="flex justify-between rounded-xl bg-blue-50 p-4 text-xl text-blue-900">
-                  <dt className="font-bold">Balance due</dt>
-                  <dd className="font-bold">
-                    {money(remainingBalance)}
-                  </dd>
-                </div>
-              </dl>
-            </section>
+                ))}
+              </tbody>
+            </table>
           </div>
+
+          <dl className="ml-auto mt-6 max-w-xs space-y-2 text-sm">
+            <div className="flex justify-between border-t border-slate-200 pt-3"><dt className="text-slate-600">Invoice total</dt><dd className="font-semibold text-slate-900">{money(Number(invoice.total))}</dd></div>
+            <div className="flex justify-between text-emerald-700"><dt>Payments received</dt><dd className="font-semibold">-{money(totalPaid)}</dd></div>
+            <div className="flex justify-between border-t border-slate-900 pt-3 text-base"><dt className="font-bold text-slate-950">Balance due</dt><dd className="font-bold text-slate-950">{money(remainingBalance)}</dd></div>
+          </dl>
         </article>
 
-        <section className="mt-8">
+        <section className="mt-8 print:hidden">
           <h2 className="text-xl font-bold text-slate-950">
             Payment schedule
           </h2>
@@ -324,9 +228,11 @@ export default async function CustomerPortalPage({
                         </h3>
                       </div>
 
-                      <p className="mt-2 text-sm text-slate-600">
-                        {schedule.due_event}
-                      </p>
+                      {schedule.due_event ? (
+                        <p className="mt-2 text-sm text-slate-600">
+                          {schedule.due_event}
+                        </p>
+                      ) : null}
 
                       <p className="mt-1 text-sm text-slate-500">
                         {Number(schedule.percentage)}% of invoice

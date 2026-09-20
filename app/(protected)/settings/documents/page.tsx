@@ -17,7 +17,7 @@ export default async function DocumentSettingsPage({
   const { data: profile } = await supabase
     .from("business_profiles")
     .select(
-      "estimate_contract_template, default_terms, payment_instructions, payment_schedule_tiers",
+      "estimate_contract_template, default_terms, payment_instructions, payment_schedule_tiers, auto_generate_invoice_on_approval",
     )
     .maybeSingle();
 
@@ -120,6 +120,23 @@ export default async function DocumentSettingsPage({
             placeholder="Explain how and where customers should submit payment"
             className={`mt-2 resize-y whitespace-pre-wrap ${inputClass}`}
           />
+
+          <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4">
+            <input
+              type="checkbox"
+              name="autoGenerateInvoiceOnApproval"
+              defaultChecked={profile?.auto_generate_invoice_on_approval ?? false}
+              className="mt-0.5 size-4 accent-blue-600"
+            />
+            <span>
+              <span className="block font-semibold text-slate-800">
+                Automatically create and send an invoice when a customer approves an estimate
+              </span>
+              <span className="mt-1 block text-sm text-slate-500">
+                Uses the estimate's payment schedule (or a single full-amount payment if none was set) and emails the customer a payment link right away.
+              </span>
+            </span>
+          </label>
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
