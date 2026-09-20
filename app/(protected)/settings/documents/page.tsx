@@ -3,6 +3,7 @@ import { ArrowLeft, FileText, Save } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { saveDocumentSettings } from "./actions";
 import PaymentScheduleTiersEditor from "./payment-schedule-tiers-editor";
+import SettingsTile from "./settings-tile";
 
 type DocumentSettingsPageProps = {
   searchParams: Promise<{ message?: string }>;
@@ -17,7 +18,7 @@ export default async function DocumentSettingsPage({
   const { data: profile } = await supabase
     .from("business_profiles")
     .select(
-      "estimate_contract_template, default_terms, payment_instructions, payment_schedule_tiers, auto_generate_invoice_on_approval",
+      "estimate_contract_template, default_terms, payment_instructions, payment_schedule_tiers, auto_generate_invoice_on_approval, estimate_email_subject, estimate_email_body, invoice_email_subject, invoice_email_body",
     )
     .maybeSingle();
 
@@ -54,18 +55,13 @@ export default async function DocumentSettingsPage({
       ) : null}
 
       <form action={saveDocumentSettings} className="space-y-6">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-950">
-            Estimate contract template
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            This contract is automatically placed into every new estimate.
-            It can still be edited before an individual estimate is saved.
-          </p>
-
+        <SettingsTile
+          title="Estimate contract template"
+          description="Automatically placed into every new estimate. Can still be edited per estimate."
+        >
           <label
             htmlFor="estimateContractTemplate"
-            className="mt-5 block text-sm font-semibold text-slate-700"
+            className="block text-sm font-semibold text-slate-700"
           >
             Default estimate contract
           </label>
@@ -81,19 +77,15 @@ export default async function DocumentSettingsPage({
             Updates apply only to new estimates. Existing estimates retain
             their saved contract.
           </p>
-        </section>
+        </SettingsTile>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-950">
-            Invoice defaults
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Set the terms and payment instructions used on new invoices.
-          </p>
-
+        <SettingsTile
+          title="Invoice defaults"
+          description="Terms, payment instructions, and auto-invoice behavior for new invoices."
+        >
           <label
             htmlFor="defaultTerms"
-            className="mt-5 block text-sm font-semibold text-slate-700"
+            className="block text-sm font-semibold text-slate-700"
           >
             Default terms and conditions
           </label>
@@ -130,27 +122,81 @@ export default async function DocumentSettingsPage({
             />
             <span>
               <span className="block font-semibold text-slate-800">
-                Automatically create and send an invoice when a customer approves an estimate
+                Auto-create and send an invoice on approval
               </span>
               <span className="mt-1 block text-sm text-slate-500">
-                Uses the estimate's payment schedule (or a single full-amount payment if none was set) and emails the customer a payment link right away.
+                Uses the estimate's payment schedule and emails the customer a payment link right away.
               </span>
             </span>
           </label>
-        </section>
+        </SettingsTile>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-950">
-            Payment schedule tiers
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Automatically apply a different payment schedule depending on the estimate's total. You can still adjust it per estimate.
-          </p>
-
+        <SettingsTile
+          title="Payment schedule tiers"
+          description="Automatically apply a different payment schedule based on the estimate's total."
+        >
           <PaymentScheduleTiersEditor
             initialTiers={profile?.payment_schedule_tiers ?? []}
           />
-        </section>
+        </SettingsTile>
+
+        <SettingsTile
+          title="Email message templates"
+          description="Customize the subject and message sent when estimates and invoices go to customers."
+        >
+          <div className="mb-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+            Available placeholders: <code className="rounded bg-white px-1.5 py-0.5 font-mono text-xs">{"{{customerName}}"}</code>{" "}
+            <code className="rounded bg-white px-1.5 py-0.5 font-mono text-xs">{"{{companyName}}"}</code>{" "}
+            <code className="rounded bg-white px-1.5 py-0.5 font-mono text-xs">{"{{documentNumber}}"}</code>{" "}
+            <code className="rounded bg-white px-1.5 py-0.5 font-mono text-xs">{"{{link}}"}</code>
+          </div>
+
+          <h3 className="text-sm font-bold text-slate-900">Estimate email</h3>
+          <label htmlFor="estimateEmailSubject" className="mt-3 block text-sm font-semibold text-slate-700">
+            Subject
+          </label>
+          <input
+            id="estimateEmailSubject"
+            name="estimateEmailSubject"
+            defaultValue={profile?.estimate_email_subject ?? ""}
+            placeholder="Estimate {{documentNumber}} from {{companyName}}"
+            className={`mt-2 ${inputClass}`}
+          />
+          <label htmlFor="estimateEmailBody" className="mt-4 block text-sm font-semibold text-slate-700">
+            Message
+          </label>
+          <textarea
+            id="estimateEmailBody"
+            name="estimateEmailBody"
+            rows={6}
+            defaultValue={profile?.estimate_email_body ?? ""}
+            placeholder={"Hello {{customerName}},\n\nPlease review your estimate:\n{{link}}\n\nThank you."}
+            className={`mt-2 resize-y whitespace-pre-wrap ${inputClass}`}
+          />
+
+          <h3 className="mt-6 text-sm font-bold text-slate-900">Invoice email</h3>
+          <label htmlFor="invoiceEmailSubject" className="mt-3 block text-sm font-semibold text-slate-700">
+            Subject
+          </label>
+          <input
+            id="invoiceEmailSubject"
+            name="invoiceEmailSubject"
+            defaultValue={profile?.invoice_email_subject ?? ""}
+            placeholder="Invoice {{documentNumber}} from {{companyName}}"
+            className={`mt-2 ${inputClass}`}
+          />
+          <label htmlFor="invoiceEmailBody" className="mt-4 block text-sm font-semibold text-slate-700">
+            Message
+          </label>
+          <textarea
+            id="invoiceEmailBody"
+            name="invoiceEmailBody"
+            rows={6}
+            defaultValue={profile?.invoice_email_body ?? ""}
+            placeholder={"Hello {{customerName}},\n\nThank you for approving your estimate. Your invoice and payment options are ready:\n{{link}}\n\nThank you."}
+            className={`mt-2 resize-y whitespace-pre-wrap ${inputClass}`}
+          />
+        </SettingsTile>
 
         <button
           type="submit"

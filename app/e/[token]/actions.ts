@@ -28,7 +28,7 @@ async function autoGenerateInvoice(
 
   const { data: business } = await admin
     .from("business_profiles")
-    .select("company_name, email")
+    .select("company_name, email, invoice_email_subject, invoice_email_body")
     .eq("organization_id", estimate.organization_id)
     .maybeSingle();
 
@@ -123,14 +123,31 @@ async function autoGenerateInvoice(
     const companyName = business?.company_name ?? "your contractor";
     const link = `${appUrl}/p/${invoice.public_token}`;
 
+    const { fillTemplate, textToHtml } = await import("@/lib/email-template");
+    const placeholders = {
+      customerName: estimate.customers?.first_name ?? "",
+      companyName,
+      documentNumber: invoiceNumber,
+      link,
+    };
+
+    const subjectTemplate =
+      business?.invoice_email_subject || "Invoice {{documentNumber}} from {{companyName}}";
+    const bodyTemplate =
+      business?.invoice_email_body ||
+      "Hello {{customerName}},\n\nThank you for approving your estimate. Your invoice and payment options are ready:\n{{link}}\n\nThank you.";
+
+    const subject = fillTemplate(subjectTemplate, placeholders);
+    const html = textToHtml(fillTemplate(bodyTemplate, placeholders));
+
     try {
       const { resend } = await import("@/lib/resend");
       await resend.emails.send({
         from: `${companyName} <onboarding@resend.dev>`,
         to: customerEmail,
         replyTo: business?.email || undefined,
-        subject: `Invoice ${invoiceNumber} from ${companyName}`,
-        html: `<p>Hello ${estimate.customers?.first_name ?? ""},</p><p>Thank you for approving your estimate. Your invoice and payment options are ready:</p><p><a href="${link}">${link}</a></p><p>Thank you.</p>`,
+        subject,
+        html,
       });
     } catch {}
   }

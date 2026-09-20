@@ -11,6 +11,10 @@ const documentSettingsSchema = z.object({
   paymentInstructions: z.string().trim(),
   paymentScheduleTiers: z.string().trim(),
   autoGenerateInvoiceOnApproval: z.boolean(),
+  estimateEmailSubject: z.string().trim(),
+  estimateEmailBody: z.string().trim(),
+  invoiceEmailSubject: z.string().trim(),
+  invoiceEmailBody: z.string().trim(),
 });
 
 export async function saveDocumentSettings(formData: FormData) {
@@ -20,6 +24,10 @@ export async function saveDocumentSettings(formData: FormData) {
     paymentInstructions: formData.get("paymentInstructions"),
     paymentScheduleTiers: formData.get("paymentScheduleTiers"),
     autoGenerateInvoiceOnApproval: formData.get("autoGenerateInvoiceOnApproval") === "on",
+    estimateEmailSubject: formData.get("estimateEmailSubject"),
+    estimateEmailBody: formData.get("estimateEmailBody"),
+    invoiceEmailSubject: formData.get("invoiceEmailSubject"),
+    invoiceEmailBody: formData.get("invoiceEmailBody"),
   });
 
   if (!result.success) {
@@ -52,6 +60,10 @@ export async function saveDocumentSettings(formData: FormData) {
         result.data.paymentInstructions || null,
       payment_schedule_tiers: Array.isArray(parsedTiers) && parsedTiers.length > 0 ? parsedTiers : null,
       auto_generate_invoice_on_approval: result.data.autoGenerateInvoiceOnApproval,
+      estimate_email_subject: result.data.estimateEmailSubject || null,
+      estimate_email_body: result.data.estimateEmailBody || null,
+      invoice_email_subject: result.data.invoiceEmailSubject || null,
+      invoice_email_body: result.data.invoiceEmailBody || null,
     })
     .eq("organization_id", organizationId);
 

@@ -523,7 +523,7 @@ export async function sendEstimateEmail(estimateId: string) {
 
   const { data: business } = await supabase
     .from("business_profiles")
-    .select("company_name, email")
+    .select("company_name, email, estimate_email_subject, estimate_email_body")
     .eq("organization_id", estimate.organization_id)
     .maybeSingle();
 
@@ -531,15 +531,32 @@ export async function sendEstimateEmail(estimateId: string) {
   const link = `${appUrl}/e/${estimate.public_token}`;
   const companyName = business?.company_name ?? "your contractor";
 
+  const { fillTemplate, textToHtml } = await import("@/lib/email-template");
+  const placeholders = {
+    customerName: estimate.customers.first_name ?? "",
+    companyName,
+    documentNumber: estimate.estimate_number,
+    link,
+  };
+
+  const subjectTemplate =
+    business?.estimate_email_subject || "Estimate {{documentNumber}} from {{companyName}}";
+  const bodyTemplate =
+    business?.estimate_email_body ||
+    "Hello {{customerName}},\n\nPlease review your estimate from {{companyName}}:\n{{link}}\n\nThank you.";
+
+  const subject = fillTemplate(subjectTemplate, placeholders);
+  const html = textToHtml(fillTemplate(bodyTemplate, placeholders));
+
   try {
     const { resend } = await import("@/lib/resend");
 
-      await resend.emails.send({
+    await resend.emails.send({
       from: `${companyName} <onboarding@resend.dev>`,
       to: estimate.customers.email,
       replyTo: business?.email || undefined,
-      subject: `Estimate ${estimate.estimate_number} from ${companyName}`,
-      html: `<p>Hello ${estimate.customers.first_name},</p><p>Please review your estimate from ${companyName}:</p><p><a href="${link}">${link}</a></p><p>Thank you.</p>`,
+      subject,
+      html,
     });
 
     await supabase
