@@ -174,8 +174,9 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
       setSignatureData("");
       return;
     }
+    const fontFamily = getComputedStyle(document.documentElement).getPropertyValue("--font-signature").trim() || "cursive";
     try {
-      await document.fonts.load("80px var(--font-signature)");
+      await document.fonts.load(`80px ${fontFamily}`);
     } catch {}
     const canvas = document.createElement("canvas");
     canvas.width = 600;
@@ -183,7 +184,7 @@ export default function EstimateForm({ customers, business, initialEstimate, sav
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.fillStyle = "#0f172a";
-    ctx.font = "80px var(--font-signature)";
+    ctx.font = `80px ${fontFamily}`;
     ctx.textBaseline = "middle";
     ctx.fillText(name, 20, 85);
     const dataUrl = canvas.toDataURL("image/png");

@@ -36,6 +36,11 @@ export type EstimatePdfData = {
     showQuantity: boolean;
     showRate: boolean;
     paymentSchedule: Array<{ title: string; percentage: number }>;
+    companySignature: string | null;
+    companySignedAt: string | null;
+    customerSignature: string | null;
+    customerSignedAt: string | null;
+    customerSignedName: string | null;
   };
   items: Array<{
     id: string;
@@ -244,6 +249,19 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     lineHeight: 1.5,
   },
+  signatureRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  signatureColumn: {
+    width: "45%",
+  },
+  signatureImage: {
+    width: 140,
+    height: 45,
+    marginTop: 6,
+    objectFit: "contain",
+  },
   footer: {
     position: "absolute",
     left: 36,
@@ -345,7 +363,6 @@ export default function EstimatePdfDocument({
             <Text style={styles.documentNumber}>
               {data.estimate.number}
             </Text>
-
           </View>
         </View>
 
@@ -465,7 +482,7 @@ export default function EstimatePdfDocument({
             <Text>{money(data.estimate.taxAmount)}</Text>
           </View>
 
-                    <View style={styles.grandTotal}>
+          <View style={styles.grandTotal}>
             <Text>Total</Text>
             <Text>{money(data.estimate.total)}</Text>
           </View>
@@ -503,9 +520,44 @@ export default function EstimatePdfDocument({
           </View>
         ) : null}
 
+        {data.estimate.companySignature || data.estimate.customerSignature ? (
+          <View style={[styles.notesSection, styles.signatureRow]} wrap={false}>
+            <View style={styles.signatureColumn}>
+              <Text style={styles.sectionLabel}>Contractor signature</Text>
+              {data.estimate.companySignature ? (
+                <>
+                  {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                  <Image src={data.estimate.companySignature} style={styles.signatureImage} />
+                  <Text style={[styles.smallText, { marginTop: 4 }]}>
+                    Signed {data.estimate.companySignedAt ? displayDate(data.estimate.companySignedAt) : ""}
+                  </Text>
+                </>
+              ) : (
+                <Text style={[styles.smallText, { marginTop: 6 }]}>Not yet signed</Text>
+              )}
+            </View>
+
+            <View style={styles.signatureColumn}>
+              <Text style={styles.sectionLabel}>Customer signature</Text>
+              {data.estimate.customerSignature ? (
+                <>
+                  {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                  <Image src={data.estimate.customerSignature} style={styles.signatureImage} />
+                  <Text style={[styles.smallText, { marginTop: 4 }]}>
+                    Signed by {data.estimate.customerSignedName} on{" "}
+                    {data.estimate.customerSignedAt ? displayDate(data.estimate.customerSignedAt) : ""}
+                  </Text>
+                </>
+              ) : (
+                <Text style={[styles.smallText, { marginTop: 6 }]}>Not yet signed</Text>
+              )}
+            </View>
+          </View>
+        ) : null}
+
         <View style={styles.footer} fixed>
           <Text>
-            {data.company.name} Ã‚Â· Estimate{" "}
+            {data.company.name} - Estimate{" "}
             {data.estimate.number}
           </Text>
 

@@ -112,6 +112,11 @@ export async function GET(
       showQuantity: estimate.show_quantity,
       showRate: estimate.show_rate,
       paymentSchedule: estimate.payment_schedule ?? [],
+      companySignature: estimate.company_signature ?? null,
+      companySignedAt: estimate.company_signed_at ?? null,
+      customerSignature: estimate.customer_signature ?? null,
+      customerSignedAt: estimate.customer_signed_at ?? null,
+      customerSignedName: estimate.customer_signed_name ?? null,
     },
     items: (estimate.estimate_items ?? []).map(
       (item) => ({
