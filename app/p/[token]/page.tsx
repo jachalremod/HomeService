@@ -79,6 +79,11 @@ export default async function CustomerPortalPage({
     0,
   );
 
+  const scheduleTitleById = new Map(schedules.map((s) => [s.id, s.title]));
+  const sortedPayments = [...payments].sort(
+    (a, b) => new Date(b.paid_at).getTime() - new Date(a.paid_at).getTime(),
+  );
+
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8 sm:px-6 print:bg-white print:p-0">
       <div className="mx-auto max-w-4xl">
@@ -103,7 +108,7 @@ export default async function CustomerPortalPage({
           </div>
         ) : null}
 
-                <div className="mb-4 flex justify-end print:hidden">
+        <div className="mb-4 flex justify-end print:hidden">
           <a href={`/api/portal/${token}/estimate-pdf`} target="_blank" rel="noreferrer" className="rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700">
             Open/Print PDF
           </a>
@@ -179,6 +184,25 @@ export default async function CustomerPortalPage({
             <div className="flex justify-between text-emerald-700"><dt>Payments received</dt><dd className="font-semibold">-{money(totalPaid)}</dd></div>
             <div className="flex justify-between border-t border-slate-900 pt-3 text-base"><dt className="font-bold text-slate-950">Balance due</dt><dd className="font-bold text-slate-950">{money(remainingBalance)}</dd></div>
           </dl>
+
+          {sortedPayments.length > 0 ? (
+            <section className="mt-8 border-t border-slate-200 pt-6">
+              <h3 className="text-sm font-bold text-slate-900">Payment history</h3>
+              <div className="mt-3 space-y-2">
+                {sortedPayments.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between text-sm">
+                    <div>
+                      <p className="font-semibold text-slate-800">
+                        {p.payment_schedule_id ? scheduleTitleById.get(p.payment_schedule_id) ?? "Payment" : "Payment"}
+                      </p>
+                      <p className="text-xs text-slate-500">{date(p.paid_at)}</p>
+                    </div>
+                    <p className="font-bold text-emerald-700">{money(Number(p.amount))}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
         </article>
 
         <section className="mt-8 print:hidden">
