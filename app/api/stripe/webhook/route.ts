@@ -42,6 +42,7 @@ export async function POST(request: Request) {
 
   const scheduleId = session.metadata?.schedule_id;
   const invoiceId = session.metadata?.invoice_id;
+  const baseAmountMeta = session.metadata?.base_amount;
 
   if (!scheduleId || !invoiceId || !session.amount_total) {
     return NextResponse.json(
@@ -84,7 +85,11 @@ export async function POST(request: Request) {
       ? session.payment_intent
       : session.payment_intent?.id ?? null;
 
-  const paidAmount = session.amount_total / 100;
+  // Record only the base amount owed on the invoice, excluding any
+  // processing fee surcharge the customer also paid on top.
+  const paidAmount = baseAmountMeta
+    ? Number(baseAmountMeta)
+    : session.amount_total / 100;
 
   const { error: insertError } = await admin.from("payments").insert({
     user_id: schedule.user_id,

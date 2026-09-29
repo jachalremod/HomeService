@@ -5,8 +5,10 @@ import {
   createInvitation,
   removeMember,
   revokeInvitation,
+  updateMemberDisplayName,
   updateMemberRole,
 } from "./actions";
+import { AutoSubmitRoleSelect, AutoSubmitTextInput } from "./auto-submit-input";
 
 const ROLE_STYLES: Record<string, string> = {
   owner: "bg-blue-100 text-blue-800",
@@ -97,15 +99,25 @@ export default async function TeamPage({ searchParams }: TeamPageProps) {
               return (
                 <div
                   key={member.user_id}
-                  className="flex items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 last:border-b-0"
+                  className="flex flex-col gap-3 border-b border-slate-100 px-6 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <p className="font-semibold text-slate-950">
-                    {member.email}
-                  </p>
+                  <div className="flex-1">
+                    <form action={updateMemberDisplayName} className="flex items-center gap-2">
+                      <input type="hidden" name="userId" value={member.user_id} />
+                      <input type="hidden" name="organizationId" value={organizationId} />
+                      <AutoSubmitTextInput
+                        name="displayName"
+                        defaultValue={member.display_name ?? ""}
+                        placeholder="Add a name"
+                        className="w-full max-w-[200px] rounded-lg border border-transparent px-2 py-1 font-semibold text-slate-950 outline-none hover:border-slate-200 focus:border-blue-400"
+                      />
+                    </form>
+                    <p className="mt-0.5 px-2 text-xs text-slate-500">{member.email}</p>
+                  </div>
 
                   {isOwner || isSelf ? (
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${
+                      className={`w-fit rounded-full px-3 py-1 text-xs font-bold capitalize ${
                         ROLE_STYLES[member.role] ??
                         "bg-slate-100 text-slate-700"
                       }`}
@@ -125,16 +137,10 @@ export default async function TeamPage({ searchParams }: TeamPageProps) {
                           name="organizationId"
                           value={organizationId}
                         />
-                        <select
-                          name="role"
+                        <AutoSubmitRoleSelect
                           defaultValue={member.role}
-                          onChange={(e) => e.currentTarget.form?.requestSubmit()}
                           className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-bold capitalize text-slate-700"
-                        >
-                          <option value="admin">Admin</option>
-                          <option value="office">Office</option>
-                          <option value="field">Field</option>
-                        </select>
+                        />
                       </form>
 
                       <form action={removeMember}>
@@ -148,7 +154,7 @@ export default async function TeamPage({ searchParams }: TeamPageProps) {
                           name="organizationId"
                           value={organizationId}
                         />
-                                                <button
+                        <button
                           type="submit"
                           aria-label="Remove member"
                           className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-700"

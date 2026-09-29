@@ -47,6 +47,12 @@ export async function openCustomerCheckout(formData: FormData) {
     redirect(`/p/${result.data.token}?message=Payment+schedule+not+found`);
   }
 
+  const { data: business } = await admin
+    .from("business_profiles")
+    .select("pass_processing_fee_to_customer, processing_fee_percentage")
+    .eq("organization_id", invoice.organization_id)
+    .maybeSingle();
+
   const { data: previousPayments } = await admin
     .from("payments")
     .select("amount")
@@ -63,6 +69,15 @@ export async function openCustomerCheckout(formData: FormData) {
   if (remainingAmount <= 0) {
     redirect(`/p/${result.data.token}?message=This+payment+is+already+paid`);
   }
+
+  const feePercentage = business?.pass_processing_fee_to_customer
+    ? Number(business.processing_fee_percentage) || 0
+    : 0;
+  const feeAmount =
+    feePercentage > 0
+      ? Math.round(remainingAmount * (feePercentage / 100) * 100) / 100
+      : 0;
+  const chargeAmount = remainingAmount + feeAmount;
 
   const existingLinkIsValid =
     schedule.stripe_checkout_url &&
@@ -82,27 +97,52 @@ export async function openCustomerCheckout(formData: FormData) {
     ? `${customer.first_name} ${customer.last_name}`
     : "Customer";
 
+  const lineItems: Array<{
+    quantity: number;
+    price_data: {
+      currency: string;
+      unit_amount: number;
+      product_data: { name: string; description: string };
+    };
+  }> = [
+    {
+      quantity: 1,
+      price_data: {
+        currency: "usd",
+        unit_amount: Math.round(remainingAmount * 100),
+        product_data: {
+          name: `${invoice.invoice_number} - ${schedule.title}`,
+          description: `Scheduled payment for ${customerName}`,
+        },
+      },
+    },
+  ];
+
+  if (feeAmount > 0) {
+    lineItems.push({
+      quantity: 1,
+      price_data: {
+        currency: "usd",
+        unit_amount: Math.round(feeAmount * 100),
+        product_data: {
+          name: "Card processing fee",
+          description: `${feePercentage}% processing fee`,
+        },
+      },
+    });
+  }
+
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: customer?.email ?? undefined,
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: Math.round(remainingAmount * 100),
-          product_data: {
-            name: `${invoice.invoice_number} - ${schedule.title}`,
-            description: `Scheduled payment for ${customerName}`,
-          },
-        },
-      },
-    ],
+    line_items: lineItems,
     metadata: {
       invoice_id: invoice.id,
       schedule_id: schedule.id,
       user_id: invoice.user_id,
       organization_id: invoice.organization_id,
+      base_amount: String(remainingAmount),
+      fee_amount: String(feeAmount),
     },
     payment_intent_data: {
       metadata: {
@@ -110,6 +150,8 @@ export async function openCustomerCheckout(formData: FormData) {
         schedule_id: schedule.id,
         user_id: invoice.user_id,
         organization_id: invoice.organization_id,
+        base_amount: String(remainingAmount),
+        fee_amount: String(feeAmount),
       },
     },
     success_url: `${appUrl}/p/${invoice.public_token}?payment=success`,

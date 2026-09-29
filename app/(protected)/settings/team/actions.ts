@@ -147,3 +147,35 @@ export async function removeMember(formData: FormData) {
   revalidatePath("/settings/team");
   redirect("/settings/team?message=Member+removed");
 }
+export async function updateMemberDisplayName(formData: FormData) {
+  const result = z
+    .object({
+      userId: z.uuid(),
+      organizationId: z.uuid(),
+      displayName: z.string().trim(),
+    })
+    .safeParse({
+      userId: formData.get("userId"),
+      organizationId: formData.get("organizationId"),
+      displayName: formData.get("displayName"),
+    });
+
+  if (!result.success) {
+    redirect("/settings/team?message=Invalid+name+update");
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("organization_members")
+    .update({ display_name: result.data.displayName || null })
+    .eq("organization_id", result.data.organizationId)
+    .eq("user_id", result.data.userId);
+
+  if (error) {
+    redirect(`/settings/team?message=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/settings/team");
+  redirect("/settings/team?message=Name+updated");
+}

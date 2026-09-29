@@ -3,10 +3,12 @@ import {
   Building2,
   ChevronRight,
   CircleDollarSign,
+  CreditCard,
   FileText,
   Settings,
   Users,
 } from "lucide-react";
+
 const settingSections = [
   {
     title: "Company settings",
@@ -33,6 +35,14 @@ const settingSections = [
     available: true,
   },
   {
+    title: "Billing",
+    description:
+      "Manage your ServiceAxiom subscription and payment method.",
+    href: "/billing",
+    icon: CreditCard,
+    available: true,
+  },
+  {
     title: "Payment settings",
     description:
       "Stripe payments, accepted payment methods, and payment instructions.",
@@ -41,6 +51,7 @@ const settingSections = [
     available: false,
   },
 ];
+
 export default function SettingsPage() {
   return (
     <>

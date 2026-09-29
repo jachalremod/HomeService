@@ -18,7 +18,7 @@ export default async function DocumentSettingsPage({
   const { data: profile } = await supabase
     .from("business_profiles")
     .select(
-      "estimate_contract_template, default_terms, payment_instructions, payment_schedule_tiers, auto_generate_invoice_on_approval, estimate_email_subject, estimate_email_body, invoice_email_subject, invoice_email_body",
+      "estimate_contract_template, default_terms, payment_instructions, payment_schedule_tiers, auto_generate_invoice_on_approval, estimate_email_subject, estimate_email_body, invoice_email_subject, invoice_email_body, pass_processing_fee_to_customer, processing_fee_percentage",
     )
     .maybeSingle();
 
@@ -81,7 +81,7 @@ export default async function DocumentSettingsPage({
 
         <SettingsTile
           title="Invoice defaults"
-          description="Terms, payment instructions, and auto-invoice behavior for new invoices."
+          description="Terms, payment instructions, processing fees, and auto-invoice behavior for new invoices."
         >
           <label
             htmlFor="defaultTerms"
@@ -129,6 +129,42 @@ export default async function DocumentSettingsPage({
               </span>
             </span>
           </label>
+
+          <div className="mt-5 rounded-xl border border-slate-200 p-4">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                name="passProcessingFeeToCustomer"
+                defaultChecked={profile?.pass_processing_fee_to_customer ?? false}
+                className="mt-0.5 size-4 accent-blue-600"
+              />
+              <span>
+                <span className="block font-semibold text-slate-800">
+                  Customer covers the card processing fee
+                </span>
+                <span className="mt-1 block text-sm text-slate-500">
+                  Adds a surcharge to online card payments so the fee doesn't come out of your payout.
+                </span>
+              </span>
+            </label>
+
+            <label htmlFor="processingFeePercentage" className="mt-4 flex items-center gap-3">
+              <span className="text-sm font-semibold text-slate-700">Fee percentage</span>
+              <div className="flex items-center">
+                <input
+                  id="processingFeePercentage"
+                  name="processingFeePercentage"
+                  type="number"
+                  min="0"
+                  max="20"
+                  step="0.1"
+                  defaultValue={profile?.processing_fee_percentage ?? 3}
+                  className="w-20 rounded-l-lg border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-blue-600"
+                />
+                <span className="rounded-r-lg border border-l-0 border-slate-300 bg-slate-50 px-2 py-1.5 text-sm">%</span>
+              </div>
+            </label>
+          </div>
         </SettingsTile>
 
         <SettingsTile

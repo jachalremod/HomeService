@@ -131,3 +131,31 @@ export async function rescheduleFromCalendar(formData: FormData) {
   revalidatePath("/schedule");
   redirect(`${returnTo}?message=Schedule+updated`);
 }
+export async function updateJobAssignment(formData: FormData) {
+  const jobId = jobIdSchema.safeParse(formData.get("jobId"));
+
+  if (!jobId.success) {
+    redirect("/jobs?message=Invalid+job");
+  }
+
+  const assignedTo = String(formData.get("assignedTo") ?? "");
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("jobs")
+    .update({
+      assigned_to: assignedTo || null,
+    })
+    .eq("id", jobId.data);
+
+  if (error) {
+    redirect(
+      `/jobs/${jobId.data}?message=${encodeURIComponent(error.message)}`,
+    );
+  }
+
+  revalidatePath(`/jobs/${jobId.data}`);
+  revalidatePath("/jobs");
+  redirect(`/jobs/${jobId.data}?message=Assignment+updated`);
+}

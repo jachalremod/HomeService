@@ -6,9 +6,10 @@ import {
   CircleDollarSign,
   FileText,
   MapPin,
+  UserRound,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { updateJobSchedule, updateJobStatus } from "./actions";
+import { updateJobAssignment, updateJobSchedule, updateJobStatus } from "./actions";
 
 type JobPageProps = {
   params: Promise<{
@@ -45,6 +46,15 @@ export default async function JobPage({
   if (!job) {
     notFound();
   }
+
+  const { data: organizationId } = await supabase.rpc(
+    "current_organization_id",
+  );
+
+  const { data: teamMembers } = await supabase.rpc(
+    "get_organization_members",
+    { p_organization_id: organizationId },
+  );
 
   const paidAmount = (job.invoices?.payments ?? []).reduce(
     (sum, payment) => sum + Number(payment.amount),
@@ -132,6 +142,34 @@ export default async function JobPage({
         </section>
 
         <aside className="space-y-6">
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="flex items-center gap-2 font-bold text-slate-950">
+              <UserRound size={18} />
+              Assigned to
+            </h2>
+
+            <form action={updateJobAssignment} className="mt-5 space-y-4">
+              <input type="hidden" name="jobId" value={job.id} />
+
+              <select
+                name="assignedTo"
+                defaultValue={job.assigned_to ?? ""}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-950"
+              >
+                <option value="">Unassigned</option>
+                {(teamMembers ?? []).map((member) => (
+                  <option key={member.user_id} value={member.user_id}>
+                    {member.display_name || member.email}
+                  </option>
+                ))}
+              </select>
+
+              <button className="w-full rounded-xl border border-slate-300 px-4 py-2 font-semibold text-slate-800 hover:bg-slate-50">
+                Update assignment
+              </button>
+            </form>
+          </section>
+
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="font-bold text-slate-950">Project financials</h2>
 
@@ -235,4 +273,3 @@ export default async function JobPage({
     </>
   );
 }
-

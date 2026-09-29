@@ -15,6 +15,8 @@ const documentSettingsSchema = z.object({
   estimateEmailBody: z.string().trim(),
   invoiceEmailSubject: z.string().trim(),
   invoiceEmailBody: z.string().trim(),
+  passProcessingFeeToCustomer: z.boolean(),
+  processingFeePercentage: z.coerce.number().min(0).max(20),
 });
 
 export async function saveDocumentSettings(formData: FormData) {
@@ -28,6 +30,8 @@ export async function saveDocumentSettings(formData: FormData) {
     estimateEmailBody: formData.get("estimateEmailBody"),
     invoiceEmailSubject: formData.get("invoiceEmailSubject"),
     invoiceEmailBody: formData.get("invoiceEmailBody"),
+    passProcessingFeeToCustomer: formData.get("passProcessingFeeToCustomer") === "on",
+    processingFeePercentage: formData.get("processingFeePercentage") || 3,
   });
 
   if (!result.success) {
@@ -64,6 +68,8 @@ export async function saveDocumentSettings(formData: FormData) {
       estimate_email_body: result.data.estimateEmailBody || null,
       invoice_email_subject: result.data.invoiceEmailSubject || null,
       invoice_email_body: result.data.invoiceEmailBody || null,
+      pass_processing_fee_to_customer: result.data.passProcessingFeeToCustomer,
+      processing_fee_percentage: result.data.processingFeePercentage,
     })
     .eq("organization_id", organizationId);
 
