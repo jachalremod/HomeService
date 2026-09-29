@@ -8,7 +8,7 @@ export default async function SchedulePage() {
   const { data: jobs, error } = await supabase
     .from("jobs")
     .select(
-      "id, job_number, title, status, scheduled_start, scheduled_end, customers(first_name, last_name, project_address, city, state)",
+      "id, job_number, title, status, scheduled_start, scheduled_end, customers(first_name, last_name, phone, email, project_address, city, state)",
     )
     .order("scheduled_start", { ascending: true });
 

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Mail, MapPin, Phone, X } from "lucide-react";
 
 type Job = {
   id: string;
@@ -14,6 +14,8 @@ type Job = {
   customers: {
     first_name: string;
     last_name: string;
+    phone: string | null;
+    email: string | null;
     project_address: string | null;
     city: string | null;
     state: string | null;
@@ -43,9 +45,10 @@ export function JobCalendar({
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [hoveredCellKey, setHoveredCellKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-    const jobsByDate = useMemo(() => {
+  const jobsByDate = useMemo(() => {
     const map = new Map<string, Job[]>();
     for (const job of jobs) {
       if (!job.scheduled_start) continue;
@@ -163,20 +166,60 @@ export function JobCalendar({
               </p>
 
               <div className="flex flex-col gap-1">
-                {dayJobs.slice(0, 3).map((job) => (
-                  <button
-                    key={job.id}
-                    type="button"
-                    onClick={() => setSelectedJob(job)}
-                    className={`truncate rounded border px-1.5 py-0.5 text-left text-[11px] font-semibold ${
-                      STATUS_COLORS[job.status] ??
-                      "border-slate-200 bg-slate-100 text-slate-700"
-                    }`}
-                    title={`${job.title} — ${job.customers?.first_name ?? ""} ${job.customers?.last_name ?? ""}`}
-                  >
-                    {job.title}
-                  </button>
-                ))}
+                {dayJobs.slice(0, 3).map((job) => {
+                  const cellKey = `${key}-${job.id}`;
+                  return (
+                    <div key={job.id} className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedJob(job)}
+                        onMouseEnter={() => setHoveredCellKey(cellKey)}
+                        onMouseLeave={() => setHoveredCellKey(null)}
+                        className={`w-full truncate rounded border px-1.5 py-0.5 text-left text-[11px] font-semibold ${
+                          STATUS_COLORS[job.status] ??
+                          "border-slate-200 bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {job.title}
+                      </button>
+
+                      {hoveredCellKey === cellKey ? (
+                        <div className="absolute left-0 top-full z-30 mt-1 w-64 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xl">
+                          <p className="text-xs font-bold text-blue-700">{job.job_number}</p>
+                          <p className="mt-1 font-bold text-slate-950">{job.title}</p>
+                          <p className="mt-2 text-sm font-semibold text-slate-800">
+                            {job.customers?.first_name} {job.customers?.last_name}
+                          </p>
+
+                          {job.customers?.project_address ? (
+                            <p className="mt-2 flex items-start gap-1.5 text-xs text-slate-600">
+                              <MapPin size={13} className="mt-0.5 shrink-0" />
+                              <span>
+                                {job.customers.project_address}
+                                {job.customers.city ? `, ${job.customers.city}` : ""}
+                                {job.customers.state ? `, ${job.customers.state}` : ""}
+                              </span>
+                            </p>
+                          ) : null}
+
+                          {job.customers?.phone ? (
+                            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-600">
+                              <Phone size={13} className="shrink-0" />
+                              {job.customers.phone}
+                            </p>
+                          ) : null}
+
+                          {job.customers?.email ? (
+                            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-600">
+                              <Mail size={13} className="shrink-0" />
+                              {job.customers.email}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
                 {dayJobs.length > 3 ? (
                   <p className="text-[11px] font-semibold text-slate-500">
                     +{dayJobs.length - 3} more
