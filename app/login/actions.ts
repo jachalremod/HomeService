@@ -6,29 +6,37 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
 const credentialsSchema = z.object({
-  email: z.email(),
+  username: z.string().trim().min(1),
   password: z.string().min(6),
 });
 
-function readCredentials(formData: FormData) {
-  return credentialsSchema.safeParse({
-    email: formData.get("email"),
+export async function login(formData: FormData) {
+  const result = credentialsSchema.safeParse({
+    username: formData.get("username"),
     password: formData.get("password"),
   });
-}
-
-export async function login(formData: FormData) {
-  const result = readCredentials(formData);
 
   if (!result.success) {
-    redirect("/login?message=Enter+a+valid+email+and+password");
+    redirect("/login?message=Enter+a+valid+username+and+password");
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(result.data);
 
-  if (error) {
-    redirect(`/login?message=${encodeURIComponent(error.message)}`);
+  const { data: email } = await supabase.rpc("get_email_for_username", {
+    p_username: result.data.username,
+  });
+
+  if (!email) {
+    redirect("/login?message=Invalid+username+or+password");
+  }
+
+    const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password: result.data.password,
+  });
+
+    if (error) {
+    redirect("/login?message=Invalid+username+or+password");
   }
 
   const { data: organizationId } = await supabase.rpc("current_organization_id");
@@ -38,21 +46,4 @@ export async function login(formData: FormData) {
 
   revalidatePath("/", "layout");
   redirect(organization?.onboarding_completed ? "/dashboard" : "/onboarding");
-}
-
-export async function signup(formData: FormData) {
-  const result = readCredentials(formData);
-
-  if (!result.success) {
-    redirect("/login?message=Use+a+valid+email+and+at+least+6+characters");
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signUp(result.data);
-
-  if (error) {
-    redirect(`/login?message=${encodeURIComponent(error.message)}`);
-  }
-
-  redirect("/login?message=Account+created.+Check+your+email,+then+log+in.");
 }

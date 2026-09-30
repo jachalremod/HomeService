@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const signupSchema = z
   .object({
@@ -10,6 +11,13 @@ const signupSchema = z
     lastName: z.string().trim().min(1),
     companyName: z.string().trim().optional(),
     email: z.email(),
+    phone: z.string().trim().min(1),
+    username: z
+      .string()
+      .trim()
+      .min(3)
+      .max(30)
+      .regex(/^[a-zA-Z0-9_.]+$/, "Username can only contain letters, numbers, periods, and underscores"),
     password: z.string().min(8),
     confirmPassword: z.string(),
     invitationToken: z.string().trim().optional(),
@@ -20,19 +28,40 @@ const signupSchema = z
   });
 
 export async function registerContractor(formData: FormData) {
+  const invitationTokenRaw = formData.get("invitationToken");
+  const inviteSuffix = invitationTokenRaw
+    ? `&invite=${encodeURIComponent(String(invitationTokenRaw))}`
+    : "";
+
   const result = signupSchema.safeParse({
     firstName: formData.get("firstName"),
     lastName: formData.get("lastName"),
     companyName: formData.get("companyName") || undefined,
     email: formData.get("email"),
+    phone: formData.get("phone"),
+    username: formData.get("username"),
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
-    invitationToken: formData.get("invitationToken") || undefined,
+    invitationToken: invitationTokenRaw || undefined,
   });
+
   if (!result.success) {
     redirect(
-      "/signup?message=Complete+all+fields+and+use+matching+passwords+with+at+least+8+characters",
+      `/signup?message=${encodeURIComponent(
+        result.error.issues[0]?.message ?? "Complete all required fields",
+      )}${inviteSuffix}`,
     );
+  }
+
+  const admin = createAdminClient();
+  const { data: existingUsername } = await admin
+    .from("profiles")
+    .select("user_id")
+    .ilike("username", result.data.username)
+    .maybeSingle();
+
+  if (existingUsername) {
+    redirect(`/signup?message=That+username+is+already+taken${inviteSuffix}`);
   }
 
   const supabase = await createClient();
@@ -55,8 +84,18 @@ export async function registerContractor(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/signup?message=${encodeURIComponent(error.message)}`);
+    redirect(`/signup?message=${encodeURIComponent(error.message)}${inviteSuffix}`);
   }
+
+  if (!data.user) {
+    redirect(`/signup?message=Unable+to+create+account${inviteSuffix}`);
+  }
+
+  await admin.from("profiles").insert({
+    user_id: data.user.id,
+    username: result.data.username,
+    phone: result.data.phone,
+  });
 
   if (!data.session) {
     redirect(

@@ -115,6 +115,33 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
             />
           </label>
 
+          <label className="block text-sm font-semibold text-slate-700">
+            Phone number
+            <input
+              name="phone"
+              type="tel"
+              required
+              autoComplete="tel"
+              placeholder="(555) 123-4567"
+              className={`mt-2 ${inputClass}`}
+            />
+          </label>
+
+          <label className="block text-sm font-semibold text-slate-700">
+            Username
+            <input
+              name="username"
+              required
+              autoComplete="username"
+              minLength={3}
+              maxLength={30}
+              pattern="[a-zA-Z0-9_.]+"
+              title="Letters, numbers, periods, and underscores only"
+              placeholder="yourusername"
+              className={`mt-2 ${inputClass}`}
+            />
+          </label>
+
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="text-sm font-semibold text-slate-700">
               Password

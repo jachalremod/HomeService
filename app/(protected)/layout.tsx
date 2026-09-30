@@ -12,11 +12,12 @@ import {
   Settings,
   Users,
   Wrench,
-} from "lucide-react";import { createClient } from "@/lib/supabase/server";
+} from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
 import { logout } from "./dashboard/actions";
 import ThemeToggle from "@/app/theme-toggle";
 
-const navigation = [
+const fullNavigation = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Customers", href: "/customers", icon: Users },
   { label: "Estimates", href: "/estimates", icon: FileText },
@@ -26,6 +27,11 @@ const navigation = [
   { label: "Schedule", href: "/schedule", icon: Calendar },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
+
+const fieldNavigation = [
+  { label: "My Jobs", href: "/my-jobs", icon: Wrench },
+];
+
 export default async function ProtectedLayout({
   children,
 }: Readonly<{
@@ -52,6 +58,13 @@ export default async function ProtectedLayout({
     ? Math.max(0, Math.ceil((new Date(organization.trial_ends_at).getTime() - Date.now()) / 86400000))
     : null;
 
+  const { data: memberRole } = await supabase.rpc("current_member_role", {
+    p_organization_id: organizationId,
+  });
+  const isFieldRole = memberRole === "field";
+  const navigation = isFieldRole ? fieldNavigation : fullNavigation;
+  const homeHref = isFieldRole ? "/my-jobs" : "/dashboard";
+
   const { data: business } = await supabase
     .from("business_profiles")
     .select("company_name, logo_url")
@@ -61,7 +74,7 @@ export default async function ProtectedLayout({
     <div className="min-h-screen bg-slate-100">
       <header className="border-b border-slate-200 bg-white lg:hidden print:hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <Link href="/dashboard" className="flex items-center gap-3">
+          <Link href={homeHref} className="flex items-center gap-3">
             {business?.logo_url ? (
               <div
                 role="img"
@@ -135,7 +148,9 @@ export default async function ProtectedLayout({
             <p className="truncate font-bold">
               {business?.company_name || "ServiceAxiom"}
             </p>
-            <p className="text-xs text-slate-500">Contractor workspace</p>
+            <p className="text-xs text-slate-500">
+              {isFieldRole ? "Field team" : "Contractor workspace"}
+            </p>
           </div>
         </div>
 
@@ -173,7 +188,7 @@ export default async function ProtectedLayout({
       </aside>
 
       <main className="lg:pl-64 print:pl-0">
-        {trialDaysRemaining !== null ? <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-center text-sm font-semibold text-amber-900 print:hidden">Your free trial has {trialDaysRemaining} day{trialDaysRemaining === 1 ? "" : "s"} remaining. <Link href="/billing" className="underline">Subscribe for $29.99/month</Link></div> : null}
+        {trialDaysRemaining !== null && !isFieldRole ? <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-center text-sm font-semibold text-amber-900 print:hidden">Your free trial has {trialDaysRemaining} day{trialDaysRemaining === 1 ? "" : "s"} remaining. <Link href="/billing" className="underline">Subscribe for $29.99/month</Link></div> : null}
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 print:max-w-none print:p-0">
           {children}
         </div>

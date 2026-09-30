@@ -39,20 +39,20 @@ export default async function LoginPage({
         <form className="space-y-5">
           <div>
             <label
-              htmlFor="email"
+              htmlFor="username"
               className="mb-2 block text-sm font-semibold text-slate-800"
             >
-              Email address
+              Username
             </label>
 
             <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
+              id="username"
+              name="username"
+              type="text"
+              autoComplete="username"
               required
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-950 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-              placeholder="you@company.com"
+              placeholder="yourusername"
             />
           </div>
 
